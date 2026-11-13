@@ -32,6 +32,7 @@ CURVANDO     : servo no talo por tempo fixo, sem PID.
 TRAVESSANDO  : cruzando em frente, em reta, sem PID.
 REENGATANDO  : PID de volta, tolerando ausencia de faixa por N frames.
 PARANDO      : frenagem suave (na faixa de pedestre, como manda a lei).
+RECUANDO     : ré curta e reta depois da freada, pra ficar mais atras da zebra.
 PARADO       : parado.
 FIM          : missao encerrada.
 """
@@ -50,6 +51,7 @@ CURVANDO = "CURVANDO"
 TRAVESSANDO = "TRAVESSANDO"
 REENGATANDO = "REENGATANDO"
 PARANDO = "PARANDO"
+RECUANDO = "RECUANDO"
 PARADO = "PARADO"
 FIM = "FIM"
 
@@ -157,7 +159,7 @@ class Navigator:
         # que fazer depois da parada ainda nao foi executada -- entao a
         # placa que acabou de ser lida corrige essa decisao em vez de
         # ficar esperando o proximo cruzamento (que nunca viria).
-        if self.estado in (APROXIMANDO, PARANDO, PARADO):
+        if self.estado in (APROXIMANDO, PARANDO, RECUANDO, PARADO):
             anterior = self.pos_parada
             self.pos_parada = tipo
             self._pos_parada_confirmada = True
@@ -245,7 +247,14 @@ class Navigator:
         else:
             self.pos_curva = TRAVESSANDO
             self._registrar("retomando: seguindo em frente")
-        self._muda(AVANCANDO)
+
+        # curva a DIREITA sem avanco reto: ja sai virando pra esquerda
+        # (abertura), nao anda pra frente antes.
+        if (tipo == "direita" and cfgu.MANOBRA_ABERTURA_DIR_S > 0
+                and cfgu.MANOBRA_AVANCO_DIR_EFETIVO_S <= 0):
+            self._muda(ABRINDO)
+        else:
+            self._muda(AVANCANDO)
 
     # ------------------------------------------------------------------
     def update(self, leitura_ok, zebra=None):
@@ -328,7 +337,7 @@ class Navigator:
             cmd.usa_faixa = False
             cmd.speed = cfgu.VELOCIDADE_MANOBRA
             if self.pos_curva == CURVANDO:
-                limite = (cfgu.MANOBRA_AVANCO_DIR_S if self.sentido > 0
+                limite = (cfgu.MANOBRA_AVANCO_DIR_EFETIVO_S if self.sentido > 0
                           else cfgu.MANOBRA_AVANCO_ESQ_S)
             else:
                 limite = cfgu.MANOBRA_AVANCO_DIR_S
@@ -382,6 +391,20 @@ class Navigator:
             cmd.speed = 0.0
             cmd.frear = True
             if dt >= cfgu.PARADA_FREIO_S:
+                if cfgu.ZEBRA_RECUO_S > 0:
+                    self._registrar(f"recuando {cfgu.ZEBRA_RECUO_S:.2f}s pra ficar "
+                                    f"atras da faixa")
+                    self._muda(RECUANDO)
+                else:
+                    self._registrar(f"PARADO na faixa ({cfgu.PARADA_TEMPO_S:.0f}s)")
+                    self._muda(PARADO)
+
+        elif e == RECUANDO:
+            # ré reta e curta, no piso do motor. O servo fica reto.
+            cmd.usa_faixa = False
+            cmd.turn = 0.0
+            cmd.speed = -cfgu.VELOCIDADE_RECUO
+            if dt >= cfgu.ZEBRA_RECUO_S:
                 self._registrar(f"PARADO na faixa ({cfgu.PARADA_TEMPO_S:.0f}s)")
                 self._muda(PARADO)
 

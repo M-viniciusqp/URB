@@ -209,4 +209,13 @@ muda esses tempos.
   `0` no tempo desliga. O giro a direita ganha tempo extra automatico
   (`MANOBRA_ABERTURA_COMPENSA`) pro carro sair virado os mesmos 90 graus.
   Curva a esquerda e travessia nao mudam.
+- **Ré depois de parar** (`ZEBRA_RECUO_S = 0.70`, `VELOCIDADE_RECUO`): o
+  gatilho da zebra ja estava no limite (freia na 1a vez que enxerga), entao
+  pra ficar MAIS ATRAS o carro da uma ré curta e reta apos a freada, antes
+  dos segundos de parada. Cada 0.1 s ~ 1-2 cm. `0` desliga. Esquerda e frente
+  somam o mesmo tempo de avanco pra sairem do mesmo ponto de antes.
+- **Curva a direita sem avanco reto**: `MANOBRA_AVANCO_DIR_COM_ABERTURA_S = 0`.
+  Ao sair da parada ele ja comeca virando pra esquerda (ABRINDO) e depois
+  gira a direita. Sem o reto a curva acontece mais cedo: se cortar o canto,
+  aumente `MANOBRA_ABERTURA_DIR_S`.
 

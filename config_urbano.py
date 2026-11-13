@@ -193,6 +193,17 @@ ZEBRA_COOLDOWN_POS_MANOBRA_S = 3.0
 # Quer voltar um pouco? 0.33.
 ZEBRA_PARADA_FRAC = 0.27
 
+# RE CURTA DEPOIS DA FREADA -- pra parar MAIS ATRAS da zebra.
+# O gatilho acima ja esta no limite (o carro freia no 1o instante em que
+# enxerga a zebra), entao a unica forma de ficar mais atras e DAR RE depois
+# de parar. ZEBRA_RECUO_S e o tempo de re em linha reta (servo reto) antes
+# de iniciar os segundos de parada. Cada 0.1 s ~ uns 1-2 cm (depende da
+# bateria): ajuste ate ficar atras da faixa. 0 desliga a re.
+# As manobras de esquerda e de frente ganham sozinhas o mesmo tempo a mais
+# de avanco, pra continuarem saindo do mesmo ponto de antes.
+ZEBRA_RECUO_S = 0.70
+VELOCIDADE_RECUO = VELOCIDADE_MINIMA_URBANO   # piso medido: nao desca disso
+
 APROXIMACAO_MAX_S = 2.5       # teto de tempo da aproximacao
 
 # =====================================================================
@@ -286,6 +297,13 @@ MANOBRA_ABERTURA_TURN_DIR = 0.60
 # extra proporcional (esterco x tempo da abertura / esterco do giro).
 MANOBRA_ABERTURA_COMPENSA = True
 
+# Avanco RETO antes da abertura, so na curva a direita. 0 = ja comeca virando
+# pra esquerda assim que sai da parada (o carro nao anda reto antes). Com a
+# abertura desligada (tempo 0) volta a valer MANOBRA_AVANCO_DIR_S.
+# Sem o avanco reto a curva acontece mais cedo: se ele passar a cortar o
+# canto, aumente MANOBRA_ABERTURA_DIR_S (abre mais, anda mais pra frente).
+MANOBRA_AVANCO_DIR_COM_ABERTURA_S = 0.0
+
 MANOBRA_AUTOESCALA = True     # False so depois de congelar a velocidade
 
 if MANOBRA_AUTOESCALA and VELOCIDADE_MANOBRA > 0:
@@ -296,6 +314,7 @@ if MANOBRA_AUTOESCALA and VELOCIDADE_MANOBRA > 0:
     MANOBRA_CURVA_ESQ_S  *= _k
     MANOBRA_TRAVESSIA_S  *= _k
     MANOBRA_ABERTURA_DIR_S *= _k
+    MANOBRA_AVANCO_DIR_COM_ABERTURA_S *= _k
     ZEBRA_COOLDOWN_POS_MANOBRA_S *= _k
 
 # Giro a direita EFETIVO = giro calibrado + compensacao da abertura.
@@ -309,6 +328,21 @@ if MANOBRA_ABERTURA_COMPENSA and MANOBRA_ABERTURA_DIR_S > 0:
         (MANOBRA_TURN_MAG_DIR * _curso_dir))
 else:
     MANOBRA_CURVA_DIR_EFETIVA_S = MANOBRA_CURVA_DIR_S
+
+# Avanco reto EFETIVO antes da curva a direita.
+MANOBRA_AVANCO_DIR_EFETIVO_S = (MANOBRA_AVANCO_DIR_COM_ABERTURA_S
+                                if MANOBRA_ABERTURA_DIR_S > 0
+                                else MANOBRA_AVANCO_DIR_S)
+
+# A re deixa o carro mais atras do que o ponto onde as manobras foram
+# calibradas. Pra ESQUERDA e FRENTE (que nao mudaram) avancarem o mesmo
+# caminho de antes, somam o tempo equivalente ao que foi recuado.
+if ZEBRA_RECUO_S > 0 and VELOCIDADE_MANOBRA > 0:
+    _recuo_equiv_s = ZEBRA_RECUO_S * VELOCIDADE_RECUO / VELOCIDADE_MANOBRA
+else:
+    _recuo_equiv_s = 0.0
+MANOBRA_AVANCO_ESQ_S += _recuo_equiv_s
+MANOBRA_TRAVESSIA_S += _recuo_equiv_s
 
 MANOBRA_REENGATE_FRAMES = 25  # frames sem faixa tolerados no reengate
 
