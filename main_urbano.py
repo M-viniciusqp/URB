@@ -124,10 +124,12 @@ def main():
                     if ok_p:
                         evento = placas.update(frame_placas)
                         nav.on_evento(evento)
+                        nav.on_placas_vivas(placas.vivas, placas.vivas_t)
                         ultimo_frame_placas = frame_placas
             else:
                 evento = placas.update(frame_full)
                 nav.on_evento(evento)
+                nav.on_placas_vivas(placas.vivas, placas.vivas_t)
             frame_n += 1
             t2 = time.time()
 

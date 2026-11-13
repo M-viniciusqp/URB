@@ -159,6 +159,13 @@ def modo_vivo():
             vis = tracker.detector.desenhar(frame.copy())
             cv2.putText(vis, tracker.hud(), (10, 25),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
+            # distancia VIVA (ignora o cooldown de 6 s): e ela que o robo usa
+            # no gatilho de parada pela placa (SIGN_DIST_PARADA_M). Posicione
+            # o carro no ponto de parada ideal e leia aqui.
+            vivas = " ".join(f"id{i}={d:.2f}m"
+                             for i, d in sorted(tracker.vivas.items()))
+            cv2.putText(vis, "dist viva: " + (vivas or "-"), (10, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2)
             cv2.imshow("placas", vis)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break

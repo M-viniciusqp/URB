@@ -193,16 +193,35 @@ ZEBRA_COOLDOWN_POS_MANOBRA_S = 3.0
 # Quer voltar um pouco? 0.33.
 ZEBRA_PARADA_FRAC = 0.27
 
-# RE CURTA DEPOIS DA FREADA -- pra parar MAIS ATRAS da zebra.
-# O gatilho acima ja esta no limite (o carro freia no 1o instante em que
-# enxerga a zebra), entao a unica forma de ficar mais atras e DAR RE depois
-# de parar. ZEBRA_RECUO_S e o tempo de re em linha reta (servo reto) antes
-# de iniciar os segundos de parada. Cada 0.1 s ~ uns 1-2 cm (depende da
-# bateria): ajuste ate ficar atras da faixa. 0 desliga a re.
-# As manobras de esquerda e de frente ganham sozinhas o mesmo tempo a mais
-# de avanco, pra continuarem saindo do mesmo ponto de antes.
-ZEBRA_RECUO_S = 0.70
-VELOCIDADE_RECUO = VELOCIDADE_MINIMA_URBANO   # piso medido: nao desca disso
+# GATILHO DE PARADA PELA PLACA (camera de placas) -- pra parar ANTES da zebra.
+# A placa fica ao lado da zebra e a camera de placas le o marcador de longe
+# (a zebra, nessa camera, tem listras de 1-2 px e some). Quando a placa que
+# ARMOU a intencao chega a SIGN_DIST_PARADA_M, o carro para na hora, sem
+# esperar a camera da faixa ver a zebra. So vale pra MESMA placa (por ID),
+# com intencao armada; sem placa, vale o gatilho da zebra de sempre.
+#   None = DESLIGADO (so a zebra decide).
+# COMO CALIBRAR: rode normal. Na hora da parada pela zebra o log mostra
+#   "gatilho de parada: zebra em frac=.. | placa a 0.62 m na hora da parada"
+# Esse e o ponto de parada de hoje. Pra parar ANTES, ponha um valor MAIOR
+# (ex.: 0.62 + 0.10 = 0.72). Tambem da pra ver a distancia ao vivo: o HUD
+# mostra "intencao=direita placa=0.82m", e o test_signs.py mostra o mesmo.
+# Se a placa sair do campo da camera antes dessa distancia o gatilho nao
+# dispara e a zebra assume (fallback).
+SIGN_DIST_PARADA_M = None
+SIGN_DIST_PARADA_IDADE_S = 0.6   # leitura mais velha que isso e ignorada
+
+# Parar mais atras (gatilho da placa) alonga o caminho ate o cruzamento: este
+# tempo EXTRA de avanco reto (em segundos reais) e somado a esquerda, a
+# travessia e, se > 0, a direita (que passa a andar reto antes de abrir).
+# Comece em 0.0 e aumente ate as curvas sairem do mesmo ponto de antes.
+MANOBRA_AVANCO_EXTRA_PLACA_S = 0.0
+
+# NAO existe re: dar marcha a re na parada e contra a regra. O carro so anda
+# pra frente. Esse gatilho (0.27) ja e o mais cedo que a deteccao permite:
+# o carro freia no 1o instante em que enxerga a zebra. Pra parar mais atras
+# o caminho e a CAMERA enxergar a zebra de mais longe (abaixar/inclinar) e
+# depois reajustar este valor olhando o log "zebra detectada ... frac=" e a
+# janela de mascara do --debug (linha verde = gatilho).
 
 APROXIMACAO_MAX_S = 2.5       # teto de tempo da aproximacao
 
@@ -333,16 +352,6 @@ else:
 MANOBRA_AVANCO_DIR_EFETIVO_S = (MANOBRA_AVANCO_DIR_COM_ABERTURA_S
                                 if MANOBRA_ABERTURA_DIR_S > 0
                                 else MANOBRA_AVANCO_DIR_S)
-
-# A re deixa o carro mais atras do que o ponto onde as manobras foram
-# calibradas. Pra ESQUERDA e FRENTE (que nao mudaram) avancarem o mesmo
-# caminho de antes, somam o tempo equivalente ao que foi recuado.
-if ZEBRA_RECUO_S > 0 and VELOCIDADE_MANOBRA > 0:
-    _recuo_equiv_s = ZEBRA_RECUO_S * VELOCIDADE_RECUO / VELOCIDADE_MANOBRA
-else:
-    _recuo_equiv_s = 0.0
-MANOBRA_AVANCO_ESQ_S += _recuo_equiv_s
-MANOBRA_TRAVESSIA_S += _recuo_equiv_s
 
 MANOBRA_REENGATE_FRAMES = 25  # frames sem faixa tolerados no reengate
 

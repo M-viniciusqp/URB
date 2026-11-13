@@ -158,6 +158,13 @@ class SignTracker:
         self._cooldown = {}       # id -> timestamp ate quando ignorar
         self._frame_n = 0
         self.visivel = []         # ultimas leituras validas (pra HUD)
+        # Distancia VIVA de cada placa do mapa visivel no ultimo frame
+        # processado: id -> metros. Ao contrario de 'visivel', IGNORA o
+        # cooldown: depois que uma placa e obedecida ela some do HUD por
+        # SIGN_COOLDOWN_S, mas o navigator ainda precisa saber a que
+        # distancia ela esta (gatilho de parada pela placa).
+        self.vivas = {}
+        self.vivas_t = 0.0        # instante dessa leitura
         self.desconhecidos = {}   # id -> frames, pra IDs fora do mapa PLACAS
         self._avisados = set()
 
@@ -197,6 +204,14 @@ class SignTracker:
                     print(f"  !! ID {l.id} detectado ({self.detector.dict_name}) "
                           f"mas NAO esta no mapa PLACAS do config_urbano.py "
                           f"-- essa placa esta sendo IGNORADA")
+
+        vivas = {}
+        for l in cruas:
+            if (l.tipo is not None
+                    and cfgu.SIGN_DIST_MIN_M <= l.dist <= cfgu.SIGN_DIST_MAX_M):
+                vivas[l.id] = min(l.dist, vivas.get(l.id, 99.0))
+        self.vivas = vivas
+        self.vivas_t = time.time()
 
         leituras = [l for l in cruas
                     if l.tipo is not None
