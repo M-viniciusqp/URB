@@ -31,6 +31,7 @@ python3 main_urbano.py --debug    # com janelas, pra bancada
 | `navigator.py` | máquina de estados de decisão |
 | `main_urbano.py` | loop principal |
 | `test_signs.py` | ferramenta de calibração |
+| `test_piso.py` | acha o menor duty em que o carro anda (velocidade mínima) |
 
 ## Duas câmeras
 
@@ -168,10 +169,13 @@ muda esses tempos.
 
 ## Perfil atual: lento, mao direita
 
-- **Cruzeiro a 17%** (`VELOCIDADE_URBANA`). Manobra (0.16), aproximacao e
-  curva fechada (0.14) e tunel (0.15) ficaram nos valores calibrados na
-  pista. O freio por FPS baixo (`FPS_FREIO_URBANO`) fica desligado: nessa
-  faixa qualquer reducao cai abaixo do piso do motor e ele zumbe parado.
+- **Velocidade minima**: cruzeiro `VELOCIDADE_URBANA = 0.13` e o resto em
+  0.12 (manobra, aproximacao, perdido, tunel). Descubra o piso REAL do seu
+  motor com o carro no chao: `python3 test_piso.py` (Ctrl+C no primeiro duty
+  em que ele anda firme; ele imprime os valores pra colar no config). O
+  freio por FPS baixo (`FPS_FREIO_URBANO`) fica desligado. Baixar a
+  velocidade da manobra reescala os tempos da secao 6, mas perto do piso o
+  carro anda menos do que a conta preve: reconfira as curvas.
 - **Mao direita**: `LADO_CONTINUO_FORCADO = "direita"` (a continua e sempre
   a da direita; a visao nao adivinha mais o lado) e
   `LANE_BIAS_FRAC_URBANO = 0.55` (calibrado no Pi: perto da pontilhada,

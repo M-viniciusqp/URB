@@ -63,21 +63,30 @@ SIGN_ROI_TOP_FRAC = 0.75     # procura placa so na parte de cima do frame
 # =====================================================================
 # 4. VELOCIDADES (override do config.py)
 # =====================================================================
-# Velocidade de cruzeiro: 17% de duty. Os demais valores abaixo sao os
-# CALIBRADOS NA PISTA (manobra, aproximacao e curva fechada mais lentos que
-# o cruzeiro) e foram mantidos -- os tempos da secao 6 dependem deles.
-VELOCIDADE_URBANA = 0.17
+# "O MAIS LENTO POSSIVEL". Antes: cruzeiro 0.17, manobra 0.16, resto 0.14.
+# Agora o cruzeiro e VELOCIDADE_URBANA e tudo o mais fica 0.01 abaixo, no
+# piso. O piso REAL do seu motor/bateria so se descobre medindo:
+#     python3 test_piso.py
+# Ele diz o menor duty em que o carro ainda anda. Ponha VELOCIDADE_URBANA
+# ~0.01 ACIMA dele (e os demais = o piso), pra sobrar folga quando a bateria
+# cair. Se o carro zumbir parado, suba tudo; nao desca abaixo do piso.
+#
+# ATENCAO: baixar a velocidade da MANOBRA reescala os tempos da secao 6
+# (x REF/velocidade), mas perto do piso duty->velocidade nao e linear: o
+# carro anda MENOS do que a conta preve. Se a curva sair fechada de menos,
+# suba MANOBRA_CURVA_* um pouco; se o avanco ficar curto, suba MANOBRA_AVANCO_*.
+VELOCIDADE_URBANA = 0.13
 
 VELOCIDADE_BASE_URBANO    = VELOCIDADE_URBANA
-VELOCIDADE_MINIMA_URBANO  = 0.14
-VELOCIDADE_PERDIDO_URBANO = 0.14
-VELOCIDADE_MANOBRA        = 0.16   # dentro do cruzamento
-VELOCIDADE_APROXIMACAO    = 0.14   # chegando na faixa pra parar
-VELOCIDADE_TUNEL          = 0.15
+VELOCIDADE_MINIMA_URBANO  = 0.12
+VELOCIDADE_PERDIDO_URBANO = 0.12
+VELOCIDADE_MANOBRA        = 0.12   # dentro do cruzamento
+VELOCIDADE_APROXIMACAO    = 0.12   # chegando na faixa pra parar
+VELOCIDADE_TUNEL          = 0.12
 
 # Abaixo deste duty o motor nao vence o atrito e zumbe parado em vez de
-# andar devagar. Se o carro travar, suba as velocidades acima.
-VELOCIDADE_PISO_ESTIMADO = 0.18
+# andar devagar. Valor MEDIDO por test_piso.py -- ajuste ao resultado dele.
+VELOCIDADE_PISO_ESTIMADO = 0.12
 
 # Freio por FPS baixo (main: speed *= fps/FPS_MINIMO_SEGURO). A 17% de duty
 # qualquer reducao cai ABAIXO do piso do motor e o carro zumbe parado,
