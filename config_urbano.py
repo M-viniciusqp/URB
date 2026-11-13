@@ -29,8 +29,8 @@ FOCAL_PX = 640.0
 PLACAS = {
     0: "proibido_entrar",     # No Entry
     1: "sem_saida",           # Dead End
-    2: "esquerda",            # Proceed Left
-    3: "direita",             # Proceed Right
+    2: "direita",             # Proceed Right  (Siga a direita)
+    3: "esquerda",            # Proceed Left   (Siga a esquerda)
     4: "frente",              # Proceed Forward
     5: "parar",               # Stop - destino final
     6: "tunel",               # Tunnel

@@ -102,7 +102,9 @@ passe `--cam N` (ex: `python3 test_signs.py --scan --cam 0`).
 Mostre uma placa por vez. Anote o dicionário e o ID de cada uma.
 Corrija `ARUCO_DICT` e o mapa `PLACAS` no `config_urbano.py`.
 
-> Os IDs 0–6 que estão lá são **chute**. Se estiverem errados, o robô
+> IDs 0–5 conferidos com a imagem oficial das placas (0 Proibido entrar, 1 Rua
+> sem saída, 2 Direita, 3 Esquerda, 4 Frente, 5 Pare); o 6 (Tunnel) não estava
+> nela e continua **chute**. Direita e esquerda estavam trocadas antes. Se estiverem errados, o robô
 > obedece a placa errada com total confiança. É o passo mais crítico.
 
 ### 2. Distância das placas
