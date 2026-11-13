@@ -120,7 +120,12 @@ ARRANQUE_TEMPO_S = 0.12
 # moderado e perto da pontilhada (o correto pela lei de transito).
 # Se aparecer "!! CONTINUA NA ESQUERDA" no log, o problema voltou a ser
 # o AVANCO/GIRO da curva, nao este numero. Teto real: config.LANE_BIAS_LIMITE.
-LANE_BIAS_FRAC_URBANO = 0.55
+#
+# 0.55 -> 0.70: a placa fica quase colada na linha CONTINUA e o carro
+# derrubava ela; mais um pouco pra pontilhada afasta. Alvo desloca ~10 px
+# a mais (~2-3 cm). Proximo passo se precisar: 0.80. Teto: LANE_BIAS_LIMITE
+# (0.90). Se aparecer "!! CONTINUA NA ESQUERDA" no log, volte pra 0.55.
+LANE_BIAS_FRAC_URBANO = 0.70
 
 # Em mao direita, a linha CONTINUA (borda da rua) fica a DIREITA do carro
 # e a pontilhada a esquerda. Se a visao reportar continua na ESQUERDA, o
@@ -177,12 +182,16 @@ ZEBRA_COOLDOWN_POS_MANOBRA_S = 3.0
 # Parou em cima da faixa -> BAIXE. Parou longe demais -> suba.
 # Lembre da ZONA CEGA: frac=1.0 nao e "encostando", e "ja passou".
 #
-# PARAR MAIS CEDO: era 0.42 (o carro parava com a barra da zebra na linha 77
-# da mascara). Agora 0.39 -> para na linha 63, uns 14 px (~uma "casa" da
-# varredura) ANTES. Como a barra so cai em degraus (ver ZEBRA_SCAN_ROWS):
-#   0.39 = 1 degrau antes do que era | 0.33 = 2 degraus | 0.27 = 3 degraus
-# Quer parar ainda mais cedo? Baixe pra 0.33. Quer voltar ao de antes? 0.48.
-ZEBRA_PARADA_FRAC = 0.39
+# PARAR MAIS CEDO: originalmente 0.42 (barra da zebra na linha 77 da
+# mascara); depois 0.39 (linha 63), que ainda parava em cima. Agora 0.27 ->
+# linha 43, o MAIS CEDO que a deteccao atual permite: o carro freia na
+# primeira varredura em que enxerga a zebra. A barra so cai em degraus de
+# ~10 px (ver ZEBRA_SCAN_ROWS):
+#   0.47 (linha 73) | 0.39 (63) | 0.33 (53) | 0.27 (43) <- agora
+# Mais cedo que isso NAO adianta mexer aqui: so enxergando a zebra de mais
+# longe (ZEBRA_TOP_FRAC menor), o que arrisca confundir fundo com zebra.
+# Quer voltar um pouco? 0.33.
+ZEBRA_PARADA_FRAC = 0.27
 
 APROXIMACAO_MAX_S = 2.5       # teto de tempo da aproximacao
 

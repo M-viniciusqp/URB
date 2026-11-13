@@ -180,7 +180,8 @@ muda esses tempos.
   carro anda menos do que a conta preve: reconfira as curvas.
 - **Mao direita**: `LADO_CONTINUO_FORCADO = "direita"` (a continua e sempre
   a da direita; a visao nao adivinha mais o lado) e
-  `LANE_BIAS_FRAC_URBANO = 0.55` (calibrado no Pi: perto da pontilhada,
+  `LANE_BIAS_FRAC_URBANO = 0.70` (perto da pontilhada, pra nao derrubar a placa
+  que fica colada na continua;
   que e o correto pela lei de transito). Se aparecer "!! CONTINUA NA
   ESQUERDA" no log, o problema e o AVANCO/GIRO da curva, nao este numero.
 - **Zebra da saida**: depois da manobra a zebra e ignorada por
@@ -196,9 +197,10 @@ muda esses tempos.
   reto por padrao.
 - **Manobras**: tempos calibrados na pista (`MANOBRA_AVANCO_*`,
   `MANOBRA_CURVA_*`). Recalibre se mudar velocidade ou bateria.
-- **Parar mais cedo**: `ZEBRA_PARADA_FRAC = 0.39` (era 0.42) com a varredura
+- **Parar mais cedo**: `ZEBRA_PARADA_FRAC = 0.27` (era 0.42; 0.27 e o minimo que a
+  deteccao atual permite) com a varredura
   da zebra ampliada (`ZEBRA_TOP_FRAC = 0.15`, `ZEBRA_SCAN_ROWS = 14`). Para
-  uns 14 px (1 degrau da varredura) antes. Mais cedo ainda: `0.33`. Como
+  uns 34 px (3 degraus da varredura) antes. Voltar um pouco: `0.33`. Como
   a barra so cai em degraus, o valor tem que ficar logo abaixo de um deles
   (0.21 | 0.28 | 0.34 | 0.40 | 0.47 | 0.53).
 - **Curva a direita aberta**: novo estado `ABRINDO` (servo um pouco pra
