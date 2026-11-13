@@ -26,6 +26,8 @@ Estados
 -------
 SEGUINDO     : PID no comando. Estado normal.
 AVANCANDO    : entrando no cruzamento em linha reta, sem PID.
+ABRINDO      : so curva a DIREITA: servo um pouco pra esquerda, pra abrir o
+               caminho e nao raspar na placa do canto. Sem PID.
 CURVANDO     : servo no talo por tempo fixo, sem PID.
 TRAVESSANDO  : cruzando em frente, em reta, sem PID.
 REENGATANDO  : PID de volta, tolerando ausencia de faixa por N frames.
@@ -43,6 +45,7 @@ import config_urbano as cfgu
 SEGUINDO = "SEGUINDO"
 APROXIMANDO = "APROXIMANDO"
 AVANCANDO = "AVANCANDO"
+ABRINDO = "ABRINDO"
 CURVANDO = "CURVANDO"
 TRAVESSANDO = "TRAVESSANDO"
 REENGATANDO = "REENGATANDO"
@@ -61,7 +64,7 @@ _ACEITA_PLACA = (SEGUINDO, REENGATANDO, APROXIMANDO, PARANDO, PARADO)
 # Estados em que a decisao JA foi tomada e o carro esta executando. Aqui
 # sim a placa e recusada: no meio do cruzamento o que a camera ve e quase
 # sempre a placa da rua transversal, nao uma ordem nova.
-_EXECUTANDO = (AVANCANDO, CURVANDO, TRAVESSANDO, FIM)
+_EXECUTANDO = (AVANCANDO, ABRINDO, CURVANDO, TRAVESSANDO, FIM)
 
 
 class Comando:
@@ -330,13 +333,26 @@ class Navigator:
             else:
                 limite = cfgu.MANOBRA_AVANCO_DIR_S
             if dt >= limite:
-                self._muda(self.pos_curva or TRAVESSANDO)
+                proximo = self.pos_curva or TRAVESSANDO
+                # curva a DIREITA: antes de girar, abre o caminho (servo
+                # pra esquerda) -- a esquerda e a travessia nao mudam
+                if (proximo == CURVANDO and self.sentido > 0
+                        and cfgu.MANOBRA_ABERTURA_DIR_S > 0):
+                    proximo = ABRINDO
+                self._muda(proximo)
+
+        elif e == ABRINDO:
+            cmd.usa_faixa = False
+            cmd.turn = -cfgu.MANOBRA_ABERTURA_TURN_DIR     # negativo = esquerda
+            cmd.speed = cfgu.VELOCIDADE_MANOBRA
+            if dt >= cfgu.MANOBRA_ABERTURA_DIR_S:
+                self._muda(CURVANDO)
 
         elif e == CURVANDO:
             cmd.usa_faixa = False
             if self.sentido > 0:
                 cmd.turn = cfgu.MANOBRA_TURN_MAG_DIR
-                limite = cfgu.MANOBRA_CURVA_DIR_S
+                limite = cfgu.MANOBRA_CURVA_DIR_EFETIVA_S
             else:
                 cmd.turn = -cfgu.MANOBRA_TURN_MAG_ESQ
                 limite = cfgu.MANOBRA_CURVA_ESQ_S

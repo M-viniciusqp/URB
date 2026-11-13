@@ -153,8 +153,13 @@ ZEBRA_BARRA_MIN_PX = 3
 ZEBRA_BARRA_MAX_PX = 30
 ZEBRA_SPAN_MIN_FRAC = 0.35
 ZEBRA_IRREGULARIDADE_MAX = 0.45
-ZEBRA_SCAN_ROWS = 10
-ZEBRA_TOP_FRAC = 0.25
+# Varredura da zebra: mais linhas e comecando mais acima na imagem (0.25 ->
+# 0.15). Antes a 1a deteccao so acontecia com a faixa ja perto (frac ~0.41,
+# quase igual ao gatilho de parada), entao o gatilho nao tinha folga pra
+# parar mais cedo. Com 14 linhas a barra mais proxima so cai em degraus de
+# ~10 px (frac 0.21 | 0.28 | 0.34 | 0.40 | 0.47 | 0.53). Veja ZEBRA_PARADA_FRAC.
+ZEBRA_SCAN_ROWS = 14
+ZEBRA_TOP_FRAC = 0.15
 ZEBRA_MIN_LINHAS = 3
 ZEBRA_HIT_FRAMES = 1          # entra rapido (cada frame de espera = cm andados)
 ZEBRA_MISS_FRAMES = 6         # sai devagar (nao pisca no meio da travessia)
@@ -171,7 +176,13 @@ ZEBRA_COOLDOWN_POS_MANOBRA_S = 3.0
 # PARADA OBRIGATORIA: o gatilho e a posicao da zebra na IMAGEM.
 # Parou em cima da faixa -> BAIXE. Parou longe demais -> suba.
 # Lembre da ZONA CEGA: frac=1.0 nao e "encostando", e "ja passou".
-ZEBRA_PARADA_FRAC = 0.42
+#
+# PARAR MAIS CEDO: era 0.42 (o carro parava com a barra da zebra na linha 77
+# da mascara). Agora 0.39 -> para na linha 63, uns 14 px (~uma "casa" da
+# varredura) ANTES. Como a barra so cai em degraus (ver ZEBRA_SCAN_ROWS):
+#   0.39 = 1 degrau antes do que era | 0.33 = 2 degraus | 0.27 = 3 degraus
+# Quer parar ainda mais cedo? Baixe pra 0.33. Quer voltar ao de antes? 0.48.
+ZEBRA_PARADA_FRAC = 0.39
 
 APROXIMACAO_MAX_S = 2.5       # teto de tempo da aproximacao
 
@@ -249,6 +260,23 @@ MANOBRA_TRAVESSIA_S  = 1.50
 MANOBRA_TURN_MAG_DIR = 0.95
 MANOBRA_TURN_MAG_ESQ = 0.80   # menos esterco = raio maior = arco aberto
 
+# ABERTURA DA CURVA A DIREITA (so a direita; a esquerda nao muda).
+# Antes de virar pra direita o servo vai um pouco pra ESQUERDA por
+# MANOBRA_ABERTURA_DIR_S, e so depois gira a direita. O carro "abre" o
+# caminho e passa mais longe do canto onde fica a placa, em vez de
+# raspar nela (a placa caia). Tempo no velocidade de REFERENCIA (reescala
+# sozinho, como os outros). 0 desliga a abertura.
+#   MANOBRA_ABERTURA_DIR_S    quanto tempo fica virado pra esquerda
+#   MANOBRA_ABERTURA_TURN_DIR quanto do curso esquerdo do servo (0..1)
+# Mais tempo/mais esterco = abre mais. Se encostar na pontilhada ou invadir
+# a contramao, diminua; se ainda raspar na placa, aumente.
+MANOBRA_ABERTURA_DIR_S    = 0.35
+MANOBRA_ABERTURA_TURN_DIR = 0.60
+# O desvio pra esquerda "gasta" parte do giro: sem compensar, o carro sai da
+# curva virado menos de 90 graus. Com True, o giro a direita ganha o tempo
+# extra proporcional (esterco x tempo da abertura / esterco do giro).
+MANOBRA_ABERTURA_COMPENSA = True
+
 MANOBRA_AUTOESCALA = True     # False so depois de congelar a velocidade
 
 if MANOBRA_AUTOESCALA and VELOCIDADE_MANOBRA > 0:
@@ -258,7 +286,20 @@ if MANOBRA_AUTOESCALA and VELOCIDADE_MANOBRA > 0:
     MANOBRA_CURVA_DIR_S  *= _k
     MANOBRA_CURVA_ESQ_S  *= _k
     MANOBRA_TRAVESSIA_S  *= _k
+    MANOBRA_ABERTURA_DIR_S *= _k
     ZEBRA_COOLDOWN_POS_MANOBRA_S *= _k
+
+# Giro a direita EFETIVO = giro calibrado + compensacao da abertura.
+# (angulo girado ~ esterco x tempo; esterco em fracao do curso do servo,
+# que e diferente pra esquerda e pra direita)
+_curso_esq = config.SERVO_CENTRO - config.SERVO_MAX_ESQ
+_curso_dir = config.SERVO_MAX_DIR - config.SERVO_CENTRO
+if MANOBRA_ABERTURA_COMPENSA and MANOBRA_ABERTURA_DIR_S > 0:
+    MANOBRA_CURVA_DIR_EFETIVA_S = MANOBRA_CURVA_DIR_S + MANOBRA_ABERTURA_DIR_S * (
+        (MANOBRA_ABERTURA_TURN_DIR * _curso_esq) /
+        (MANOBRA_TURN_MAG_DIR * _curso_dir))
+else:
+    MANOBRA_CURVA_DIR_EFETIVA_S = MANOBRA_CURVA_DIR_S
 
 MANOBRA_REENGATE_FRAMES = 25  # frames sem faixa tolerados no reengate
 

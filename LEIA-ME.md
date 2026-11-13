@@ -196,3 +196,15 @@ muda esses tempos.
   reto por padrao.
 - **Manobras**: tempos calibrados na pista (`MANOBRA_AVANCO_*`,
   `MANOBRA_CURVA_*`). Recalibre se mudar velocidade ou bateria.
+- **Parar mais cedo**: `ZEBRA_PARADA_FRAC = 0.39` (era 0.42) com a varredura
+  da zebra ampliada (`ZEBRA_TOP_FRAC = 0.15`, `ZEBRA_SCAN_ROWS = 14`). Para
+  uns 14 px (1 degrau da varredura) antes. Mais cedo ainda: `0.33`. Como
+  a barra so cai em degraus, o valor tem que ficar logo abaixo de um deles
+  (0.21 | 0.28 | 0.34 | 0.40 | 0.47 | 0.53).
+- **Curva a direita aberta**: novo estado `ABRINDO` (servo um pouco pra
+  esquerda, depois gira a direita) -- evita raspar na placa do canto.
+  `MANOBRA_ABERTURA_DIR_S` (tempo) e `MANOBRA_ABERTURA_TURN_DIR` (esterco);
+  `0` no tempo desliga. O giro a direita ganha tempo extra automatico
+  (`MANOBRA_ABERTURA_COMPENSA`) pro carro sair virado os mesmos 90 graus.
+  Curva a esquerda e travessia nao mudam.
+
