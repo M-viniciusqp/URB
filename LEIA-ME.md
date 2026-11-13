@@ -209,27 +209,4 @@ muda esses tempos.
   `0` no tempo desliga. O giro a direita ganha tempo extra automatico
   (`MANOBRA_ABERTURA_COMPENSA`) pro carro sair virado os mesmos 90 graus.
   Curva a esquerda e travessia nao mudam.
-- **Sem ré**: dar marcha a ré na parada é contra a regra, então o carro só
-  anda para frente. `ZEBRA_PARADA_FRAC = 0.27` já é o mais cedo que a
-  detecção permite. Para parar mais atrás, ajuste a **câmera** (abaixar /
-  inclinar) e depois reajuste o gatilho olhando o log
-  `zebra detectada com frac=... (gatilho ...)` e a janela de máscara do
-  `--debug` (linha verde = gatilho).
-- **Curva a direita sem avanco reto**: `MANOBRA_AVANCO_DIR_COM_ABERTURA_S = 0`.
-  Ao sair da parada ele ja comeca virando pra esquerda (ABRINDO) e depois
-  gira a direita. Sem o reto a curva acontece mais cedo: se cortar o canto,
-  aumente `MANOBRA_ABERTURA_DIR_S`.
-- **Gatilho de parada pela placa** (`SIGN_DIST_PARADA_M`, desligado = `None`):
-  a camera de placas nao enxerga a zebra (listras de 1-2 px, e tracejados de
-  ruas transversais viram parada falsa), mas le o marcador de longe. Com
-  intencao armada, quando a MESMA placa (por ID) chega a essa distancia o
-  carro freia na hora, antes de a camera da faixa ver a zebra. Sem placa
-  vale a zebra de sempre. Como calibrar:
-  1. rode normal; na parada pela zebra o log traz
-     `placa a X m na hora da parada` (o HUD tambem mostra `placa=X.XXm`,
-     e o `test_signs.py` mostra `dist viva`);
-  2. ponha `SIGN_DIST_PARADA_M = X + 0.10` (maior = para mais cedo);
-  3. se as curvas sairem do ponto errado, `MANOBRA_AVANCO_EXTRA_PLACA_S`
-     soma avanco reto depois dessa parada (esquerda, frente e, se > 0, a
-     direita).
 

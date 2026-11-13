@@ -193,36 +193,6 @@ ZEBRA_COOLDOWN_POS_MANOBRA_S = 3.0
 # Quer voltar um pouco? 0.33.
 ZEBRA_PARADA_FRAC = 0.27
 
-# GATILHO DE PARADA PELA PLACA (camera de placas) -- pra parar ANTES da zebra.
-# A placa fica ao lado da zebra e a camera de placas le o marcador de longe
-# (a zebra, nessa camera, tem listras de 1-2 px e some). Quando a placa que
-# ARMOU a intencao chega a SIGN_DIST_PARADA_M, o carro para na hora, sem
-# esperar a camera da faixa ver a zebra. So vale pra MESMA placa (por ID),
-# com intencao armada; sem placa, vale o gatilho da zebra de sempre.
-#   None = DESLIGADO (so a zebra decide).
-# COMO CALIBRAR: rode normal. Na hora da parada pela zebra o log mostra
-#   "gatilho de parada: zebra em frac=.. | placa a 0.62 m na hora da parada"
-# Esse e o ponto de parada de hoje. Pra parar ANTES, ponha um valor MAIOR
-# (ex.: 0.62 + 0.10 = 0.72). Tambem da pra ver a distancia ao vivo: o HUD
-# mostra "intencao=direita placa=0.82m", e o test_signs.py mostra o mesmo.
-# Se a placa sair do campo da camera antes dessa distancia o gatilho nao
-# dispara e a zebra assume (fallback).
-SIGN_DIST_PARADA_M = None
-SIGN_DIST_PARADA_IDADE_S = 0.6   # leitura mais velha que isso e ignorada
-
-# Parar mais atras (gatilho da placa) alonga o caminho ate o cruzamento: este
-# tempo EXTRA de avanco reto (em segundos reais) e somado a esquerda, a
-# travessia e, se > 0, a direita (que passa a andar reto antes de abrir).
-# Comece em 0.0 e aumente ate as curvas sairem do mesmo ponto de antes.
-MANOBRA_AVANCO_EXTRA_PLACA_S = 0.0
-
-# NAO existe re: dar marcha a re na parada e contra a regra. O carro so anda
-# pra frente. Esse gatilho (0.27) ja e o mais cedo que a deteccao permite:
-# o carro freia no 1o instante em que enxerga a zebra. Pra parar mais atras
-# o caminho e a CAMERA enxergar a zebra de mais longe (abaixar/inclinar) e
-# depois reajustar este valor olhando o log "zebra detectada ... frac=" e a
-# janela de mascara do --debug (linha verde = gatilho).
-
 APROXIMACAO_MAX_S = 2.5       # teto de tempo da aproximacao
 
 # =====================================================================
@@ -316,13 +286,6 @@ MANOBRA_ABERTURA_TURN_DIR = 0.60
 # extra proporcional (esterco x tempo da abertura / esterco do giro).
 MANOBRA_ABERTURA_COMPENSA = True
 
-# Avanco RETO antes da abertura, so na curva a direita. 0 = ja comeca virando
-# pra esquerda assim que sai da parada (o carro nao anda reto antes). Com a
-# abertura desligada (tempo 0) volta a valer MANOBRA_AVANCO_DIR_S.
-# Sem o avanco reto a curva acontece mais cedo: se ele passar a cortar o
-# canto, aumente MANOBRA_ABERTURA_DIR_S (abre mais, anda mais pra frente).
-MANOBRA_AVANCO_DIR_COM_ABERTURA_S = 0.0
-
 MANOBRA_AUTOESCALA = True     # False so depois de congelar a velocidade
 
 if MANOBRA_AUTOESCALA and VELOCIDADE_MANOBRA > 0:
@@ -333,7 +296,6 @@ if MANOBRA_AUTOESCALA and VELOCIDADE_MANOBRA > 0:
     MANOBRA_CURVA_ESQ_S  *= _k
     MANOBRA_TRAVESSIA_S  *= _k
     MANOBRA_ABERTURA_DIR_S *= _k
-    MANOBRA_AVANCO_DIR_COM_ABERTURA_S *= _k
     ZEBRA_COOLDOWN_POS_MANOBRA_S *= _k
 
 # Giro a direita EFETIVO = giro calibrado + compensacao da abertura.
@@ -347,11 +309,6 @@ if MANOBRA_ABERTURA_COMPENSA and MANOBRA_ABERTURA_DIR_S > 0:
         (MANOBRA_TURN_MAG_DIR * _curso_dir))
 else:
     MANOBRA_CURVA_DIR_EFETIVA_S = MANOBRA_CURVA_DIR_S
-
-# Avanco reto EFETIVO antes da curva a direita.
-MANOBRA_AVANCO_DIR_EFETIVO_S = (MANOBRA_AVANCO_DIR_COM_ABERTURA_S
-                                if MANOBRA_ABERTURA_DIR_S > 0
-                                else MANOBRA_AVANCO_DIR_S)
 
 MANOBRA_REENGATE_FRAMES = 25  # frames sem faixa tolerados no reengate
 

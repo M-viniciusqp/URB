@@ -97,14 +97,6 @@ class Navigator:
         self.intencao = None        # 'direita' | 'esquerda' | 'frente' | 'parar'
         self.intencao_t = 0.0
         self.intencao_origem = ""
-        self.intencao_id = None     # ID da placa que armou a intencao
-        self._id_evento = None      # ID do evento que esta sendo processado
-
-        # distancia viva das placas (vem do SignTracker via main)
-        self._vivas = {}
-        self._vivas_t = 0.0
-        self._id_placa_parada = None    # placa que valia na hora de disparar
-        self._parou_por_placa = False   # a parada veio do gatilho da placa
 
         self._zebra_anterior = False
         self._zebra_frac = 0.0
@@ -176,7 +168,6 @@ class Navigator:
         self.intencao = tipo
         self.intencao_t = time.time()
         self.intencao_origem = origem
-        self.intencao_id = self._id_evento
         self._registrar(f"intencao ARMADA: {tipo} (placa: {origem}) "
                         f"-- aguardando a faixa de pedestre")
 
@@ -184,7 +175,6 @@ class Navigator:
         """Recebe uma placa confirmada pelo signs.py."""
         if ev is None:
             return
-        self._id_evento = getattr(ev, "id", None)
         if self.estado in _EXECUTANDO:
             self._registrar(f"placa '{ev.tipo}' ignorada (executando: {self.estado})")
             return
@@ -217,63 +207,17 @@ class Navigator:
         self._registrar(f"placa desconhecida ignorada: {tipo}")
 
     # ------------------------------------------------------------------
-    # ------------------------------------------------------------------
-    # PLACAS VIVAS: distancia de cada placa visivel, vinda do SignTracker.
-    # Usada pra parar ANTES da zebra pela distancia da placa (a placa fica
-    # ao lado da zebra e a camera de placas le o marcador de longe).
-    # ------------------------------------------------------------------
-    def on_placas_vivas(self, vivas, t):
-        """vivas = {id: metros} do ultimo frame processado; t = instante."""
-        self._vivas = vivas or {}
-        self._vivas_t = t
-
-    def _dist_viva(self, id_):
-        """Distancia atual da placa 'id_', ou None se nao esta sendo vista
-        (ou a leitura esta velha)."""
-        if id_ is None or id_ not in self._vivas:
-            return None
-        if time.time() - self._vivas_t > cfgu.SIGN_DIST_PARADA_IDADE_S:
-            return None
-        return self._vivas[id_]
-
-    def _gatilho_placa(self, agora):
-        """True quando a placa que armou a intencao chegou na distancia de
-        parada (cfgu.SIGN_DIST_PARADA_M). So vale com intencao armada E a
-        MESMA placa (por ID) sendo vista agora -- a placa da rua transversal
-        nunca para o carro."""
-        if cfgu.SIGN_DIST_PARADA_M is None:
-            return False
-        if self.estado not in (SEGUINDO, REENGATANDO) or self.intencao is None:
-            return False
-        if agora < self._zebra_bloqueio_ate:
-            return False
-        d = self._dist_viva(self.intencao_id)
-        return d is not None and d <= cfgu.SIGN_DIST_PARADA_M
-
-    def _disparar(self, tipo, por_placa=False):
-        """SEMPRE para antes da zebra. A manobra so acontece depois da parada
-        obrigatoria -- e a regra de transito, nao uma opcao: faixa de
-        pedestre e parada obrigatoria, tenha placa ou nao.
-
-        por_placa=True: o gatilho foi a DISTANCIA DA PLACA (antes de ver a
-        zebra). A freada e imediata -- nao existe zebra pra "aproximar".
+    def _disparar(self, tipo):
+        """Zebra avistada: SEMPRE para antes dela. A manobra so acontece
+        depois dos 3 segundos parado -- e a regra de transito, nao uma
+        opcao: faixa de pedestre e parada obrigatoria, tenha placa ou nao.
         """
         self._zebra_bloqueio_ate = time.time() + cfgu.ZEBRA_COOLDOWN_S
         self.pos_parada = tipo
         self._pos_parada_confirmada = self.intencao is not None
-        self._id_placa_parada = self.intencao_id
-        self._parou_por_placa = por_placa
-        d = self._dist_viva(self.intencao_id)
         self.intencao = None
-        if por_placa:
-            self._registrar(f"placa a {d:.2f} m (gatilho {cfgu.SIGN_DIST_PARADA_M:.2f} m) "
-                            f"-> parando ANTES da zebra (depois: {tipo})")
-            self._muda(PARANDO)
-            return
         self._registrar(f"faixa de pedestre a frente -> parando "
-                        f"(depois: {tipo}) | zebra detectada com "
-                        f"frac={self._zebra_frac:.2f} (gatilho "
-                        f"{cfgu.ZEBRA_PARADA_FRAC:.2f})")
+                        f"(depois: {tipo})")
         self._muda(APROXIMANDO)
 
     def _bloquear_zebra_saida(self):
@@ -282,7 +226,6 @@ class Navigator:
         de 3s na saida do cruzamento (o cooldown de _disparar vencia durante
         a propria parada obrigatoria, antes da manobra comecar)."""
         self._zebra_bloqueio_ate = time.time() + cfgu.ZEBRA_COOLDOWN_POS_MANOBRA_S
-        self._parou_por_placa = False       # manobra acabou: limpa o marcador
 
     def _executar_pos_parada(self):
         """Chamado quando a parada obrigatoria termina."""
@@ -302,15 +245,7 @@ class Navigator:
         else:
             self.pos_curva = TRAVESSANDO
             self._registrar("retomando: seguindo em frente")
-
-        # curva a DIREITA sem avanco reto: ja sai virando pra esquerda
-        # (abertura), nao anda pra frente antes.
-        extra = cfgu.MANOBRA_AVANCO_EXTRA_PLACA_S if self._parou_por_placa else 0.0
-        if (tipo == "direita" and cfgu.MANOBRA_ABERTURA_DIR_S > 0
-                and cfgu.MANOBRA_AVANCO_DIR_EFETIVO_S + extra <= 0):
-            self._muda(ABRINDO)
-        else:
-            self._muda(AVANCANDO)
+        self._muda(AVANCANDO)
 
     # ------------------------------------------------------------------
     def update(self, leitura_ok, zebra=None):
@@ -341,11 +276,7 @@ class Navigator:
                       and self.estado in (SEGUINDO, REENGATANDO))
         self._zebra_anterior = zebra_presente
 
-        # gatilho pela DISTANCIA DA PLACA vem primeiro: ele para antes de a
-        # camera da faixa sequer enxergar a zebra
-        if self._gatilho_placa(agora):
-            self._disparar(self.intencao, por_placa=True)
-        elif zebra_nova:
+        if zebra_nova:
             # Sem placa armada o correto e atravessar reto: o cruzamento nao
             # tem faixa pra seguir e a zebra ja estragou a leitura da visao.
             # Melhor uma travessia reta controlada do que deixar o PID
@@ -391,28 +322,16 @@ class Navigator:
             if chegou or dt >= cfgu.APROXIMACAO_MAX_S:
                 if not chegou:
                     self._registrar("perdi a zebra na chegada -- parando assim mesmo")
-                else:
-                    # CALIBRACAO do gatilho pela placa: a que distancia a
-                    # placa estava na hora em que o carro parou pela zebra
-                    d = self._dist_viva(self._id_placa_parada)
-                    extra = (f" | placa a {d:.2f} m na hora da parada"
-                             if d is not None else "")
-                    self._registrar(f"gatilho de parada: zebra em "
-                                    f"frac={self._zebra_frac:.2f}{extra}")
                 self._muda(PARANDO)
 
         elif e == AVANCANDO:
             cmd.usa_faixa = False
             cmd.speed = cfgu.VELOCIDADE_MANOBRA
             if self.pos_curva == CURVANDO:
-                limite = (cfgu.MANOBRA_AVANCO_DIR_EFETIVO_S if self.sentido > 0
+                limite = (cfgu.MANOBRA_AVANCO_DIR_S if self.sentido > 0
                           else cfgu.MANOBRA_AVANCO_ESQ_S)
             else:
                 limite = cfgu.MANOBRA_AVANCO_DIR_S
-            # parou mais atras (gatilho da placa): anda um pouco mais reto
-            # ate o ponto de onde a manobra foi calibrada
-            if self._parou_por_placa:
-                limite += cfgu.MANOBRA_AVANCO_EXTRA_PLACA_S
             if dt >= limite:
                 proximo = self.pos_curva or TRAVESSANDO
                 # curva a DIREITA: antes de girar, abre o caminho (servo
@@ -504,10 +423,7 @@ class Navigator:
 
     def hud(self):
         alvo = self.intencao or "-"
-        d = self._dist_viva(self.intencao_id) if self.intencao else None
-        placa = f" placa={d:.2f}m" if d is not None else ""
-        return (f"{self.estado} | intencao={alvo}{placa}"
-                + (" | TUNEL" if self.em_tunel else ""))
+        return f"{self.estado} | intencao={alvo}" + (" | TUNEL" if self.em_tunel else "")
 
     def resumo(self):
         return "\n".join(self.log) if self.log else "(nenhuma placa obedecida)"
