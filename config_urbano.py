@@ -39,7 +39,14 @@ PLACAS = {
 # =====================================================================
 # 3. CONFIRMACAO E ACIONAMENTO
 # =====================================================================
-SIGN_CONFIRMA_FRAMES = 3     # frames concordantes pra aceitar um ID
+#
+# Visto na pista: placa detectada so a 1.01m (v1, 1 voto) e a zebra
+# disparou antes de completar os votos -- a intencao nunca armou e o
+# carro seguiu reto por padrao. A causa raiz era o SALTO DE FRAMES
+# aplicado em dobro (main + SignTracker), corrigido no main_urbano.py
+# (SignTracker(pular_frames=1) com duas cameras). Estes dois valores
+# (calibrados na pista) ficam como estao.
+SIGN_CONFIRMA_FRAMES = 2     # frames concordantes pra aceitar um ID
 SIGN_DIST_MIN_M = 0.15
 SIGN_DIST_MAX_M = 2.00
 
@@ -50,27 +57,27 @@ SIGN_DIST_ACIONA_M = 1.20
 INTENCAO_VALIDA_S = 8.0      # intencao armada expira sem cruzamento
 SIGN_SUMIU_ACIONA_FRAMES = 4 # arma tambem se o marcador sumir ja perto
 SIGN_COOLDOWN_S = 6.0        # ignora o MESMO ID depois de obedecido
-SIGN_SKIP_FRAMES = 3         # roda a deteccao 1 a cada N frames
+SIGN_SKIP_FRAMES = 2         # roda a deteccao 1 a cada N frames
 SIGN_ROI_TOP_FRAC = 0.75     # procura placa so na parte de cima do frame
 
 # =====================================================================
 # 4. VELOCIDADES (override do config.py)
 # =====================================================================
-# UMA velocidade so pra tudo: 17% de duty, constante. Mexa AQUI e so aqui.
-# Constante de proposito: sem variacao de velocidade o tempo das manobras
-# cronometradas fica repetivel e o carro nao "acorda" nem "dorme" em curva.
+# Velocidade de cruzeiro: 17% de duty. Os demais valores abaixo sao os
+# CALIBRADOS NA PISTA (manobra, aproximacao e curva fechada mais lentos que
+# o cruzeiro) e foram mantidos -- os tempos da secao 6 dependem deles.
 VELOCIDADE_URBANA = 0.17
 
 VELOCIDADE_BASE_URBANO    = VELOCIDADE_URBANA
-VELOCIDADE_MINIMA_URBANO  = VELOCIDADE_URBANA   # min == base -> speed_for() nao varia
-VELOCIDADE_PERDIDO_URBANO = VELOCIDADE_URBANA
-VELOCIDADE_MANOBRA        = VELOCIDADE_URBANA   # dentro do cruzamento
-VELOCIDADE_APROXIMACAO    = VELOCIDADE_URBANA   # chegando na faixa pra parar
-VELOCIDADE_TUNEL          = VELOCIDADE_URBANA
+VELOCIDADE_MINIMA_URBANO  = 0.14
+VELOCIDADE_PERDIDO_URBANO = 0.14
+VELOCIDADE_MANOBRA        = 0.16   # dentro do cruzamento
+VELOCIDADE_APROXIMACAO    = 0.14   # chegando na faixa pra parar
+VELOCIDADE_TUNEL          = 0.15
 
 # Abaixo deste duty o motor nao vence o atrito e zumbe parado em vez de
-# andar devagar. Se o carro travar, suba VELOCIDADE_URBANA.
-VELOCIDADE_PISO_ESTIMADO = 0.17
+# andar devagar. Se o carro travar, suba as velocidades acima.
+VELOCIDADE_PISO_ESTIMADO = 0.18
 
 # Freio por FPS baixo (main: speed *= fps/FPS_MINIMO_SEGURO). A 17% de duty
 # qualquer reducao cai ABAIXO do piso do motor e o carro zumbe parado,
@@ -95,33 +102,25 @@ ARRANQUE_TEMPO_S = 0.12
 # VIES DO ALVO. Magnitude: 0.0 = meio da faixa | 1.0 = colado na linha.
 # SINAL: positivo aproxima da PONTILHADA, negativo aproxima da CONTINUA.
 #
-# O carro tem que andar SEMPRE PELO LADO DIREITO da pista, ou seja, mais
-# perto da CONTINUA (borda direita) do que da pontilhada (divisoria
-# central). Por isso o sinal e NEGATIVO. Alem de seguir a regra, isso
-# afasta o carro da contramao: mesmo errando um pouco, ele erra pra longe
-# da divisoria, nao pra cima dela. (O vies POSITIVO usado antes colava o
-# carro na divisoria e a visao chegava a "reengatar" no par de linhas da
-# pista oposta depois de uma curva.)
-#
-# Magnitude 0.40 = alvo deslocado 40% da meia-largura da pista pra direita
-# do centro. Nao baixe muito: o controle tem zona morta (DEAD_ZONE_URBANO
-# 0.07 e SERVO_DEADBAND_URBANO 2 graus, que com PID_KP_URBANO=0.24 ignora
-# erro menor que ~0.17) e um vies pequeno some dentro dela -- o carro
-# continua andando no meio. Se a roda direita encostar/pisar na continua,
-# baixe pra -0.30; se ainda andar no meio, suba pra -0.50.
-# Teto: config.LANE_BIAS_LIMITE.
-LANE_BIAS_FRAC_URBANO = -0.40
+# HISTORICO: positivo em 0.45 (colado na pontilhada) tirava o carro pra
+# contramao depois de curva. A causa real nao era so o vies -- era o
+# AVANCO/GIRO da manobra mal calibrado (secao 6), fazendo o carro pousar
+# na faixa errada do cruzamento. Corrigido o giro, o vies pode ficar
+# moderado e perto da pontilhada (o correto pela lei de transito).
+# Se aparecer "!! CONTINUA NA ESQUERDA" no log, o problema voltou a ser
+# o AVANCO/GIRO da curva, nao este numero. Teto real: config.LANE_BIAS_LIMITE.
+LANE_BIAS_FRAC_URBANO = 0.55
 
 # Em mao direita, a linha CONTINUA (borda da rua) fica a DIREITA do carro
 # e a pontilhada a esquerda. Se a visao reportar continua na ESQUERDA, o
 # carro esta na via contraria -- o main avisa no log.
 LADO_CONTINUO_ESPERADO = "direita"
 
-# FORCA o lado do vies em vez de deixar a visao "adivinhar" qual lado e a
-# continua (contando buracos na pontilhada). Adivinhar falha justamente nos
-# trechos onde mais importa: logo depois de uma curva, ou onde a pontilhada
-# esta apagada/suja. Como a regra e "mao direita", a resposta e conhecida de
-# antemao. A deteccao automatica continua rodando so pra gerar o aviso de
+# FORCA qual lado e a continua em vez de deixar a visao "adivinhar" (contando
+# buracos na pontilhada). Adivinhar falha justamente onde mais importa: logo
+# depois de uma curva, ou onde a pontilhada esta apagada/suja. Como a regra
+# e "mao direita", a resposta e conhecida de antemao. O vies acima continua
+# valendo: o lado forcado so diz PRA ONDE e "perto da pontilhada" (esquerda). A deteccao automatica continua rodando so pra gerar o aviso de
 # CONTRAMAO no log. Use None pra voltar ao modo automatico.
 LADO_CONTINUO_FORCADO = LADO_CONTINUO_ESPERADO
 
@@ -226,10 +225,15 @@ CAMERA_RES_CAPTURA = CAMERA_RES_PLACAS   # compat. camera unica
 # =====================================================================
 VELOCIDADE_MANOBRA_REF = 0.24
 
-MANOBRA_AVANCO_DIR_S = 0.55
-MANOBRA_AVANCO_ESQ_S = 1.25
-MANOBRA_CURVA_DIR_S  = 0.80
-MANOBRA_CURVA_ESQ_S  = 1.55
+# AVANCO da direita baixado: andar reto demais antes de virar faz o carro
+# passar do canto e curvar tarde, pousando na faixa de LONGE (errada).
+MANOBRA_AVANCO_DIR_S = 0.25
+MANOBRA_AVANCO_ESQ_S = 0.45
+
+# GIRO: quanto tempo o servo FICA no angulo de MANOBRA_TURN_MAG antes de
+# soltar. Confirmado na pista.
+MANOBRA_CURVA_DIR_S  = 1.35
+MANOBRA_CURVA_ESQ_S  = 1.38
 MANOBRA_TRAVESSIA_S  = 1.50
 MANOBRA_TURN_MAG_DIR = 0.95
 MANOBRA_TURN_MAG_ESQ = 0.80   # menos esterco = raio maior = arco aberto
@@ -251,7 +255,8 @@ MANOBRA_REENGATE_FRAMES = 25  # frames sem faixa tolerados no reengate
 # 7. PARADA / DESTINO
 # =====================================================================
 PARADA_FREIO_S    = 0.25
-PARADA_TEMPO_S    = 3.0    # parado na faixa, em TODO cruzamento
+PARADA_TEMPO_S    = 5.0    # parado na faixa, em TODO cruzamento
+PARADA_TEMPO_EXTRA_MAX_S = 3.0
 PARADA_DEFINITIVA = True   # placa STOP = destino, encerra a missao
 
 # =====================================================================

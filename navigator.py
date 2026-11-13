@@ -106,6 +106,10 @@ class Navigator:
         self._tunel_ate = 0.0
         self._backup_tunel = None
 
+        # True quando pos_parada veio de placa CONFIRMADA (nao do default
+        # "frente" por falta de leitura). Ver PARADO em _passo().
+        self._pos_parada_confirmada = False
+
     # ------------------------------------------------------------------
     def _muda(self, novo):
         self.estado = novo
@@ -153,6 +157,7 @@ class Navigator:
         if self.estado in (APROXIMANDO, PARANDO, PARADO):
             anterior = self.pos_parada
             self.pos_parada = tipo
+            self._pos_parada_confirmada = True
             self._registrar(f"placa '{origem}' lida NA parada -> decisao "
                             f"atualizada: {anterior} -> {tipo}")
             return
@@ -206,6 +211,7 @@ class Navigator:
         """
         self._zebra_bloqueio_ate = time.time() + cfgu.ZEBRA_COOLDOWN_S
         self.pos_parada = tipo
+        self._pos_parada_confirmada = self.intencao is not None
         self.intencao = None
         self._registrar(f"faixa de pedestre a frente -> parando "
                         f"(depois: {tipo})")
@@ -219,9 +225,10 @@ class Navigator:
         self._zebra_bloqueio_ate = time.time() + cfgu.ZEBRA_COOLDOWN_POS_MANOBRA_S
 
     def _executar_pos_parada(self):
-        """Chamado quando os 3 segundos acabaram."""
+        """Chamado quando a parada obrigatoria termina."""
         tipo = self.pos_parada or "frente"
         self.pos_parada = None
+        self._pos_parada_confirmada = False
 
         if tipo == "parar" and cfgu.PARADA_DEFINITIVA:
             self._registrar("MISSAO ENCERRADA no destino.")
@@ -366,7 +373,15 @@ class Navigator:
             cmd.usa_faixa = False
             cmd.speed = 0.0
             cmd.frear = True      # segura parado (evita rolar em desnivel)
-            if dt >= cfgu.PARADA_TEMPO_S:
+            # Os PARADA_TEMPO_S sao minimo obrigatorio (lei de transito, vale
+            # sempre). Se a placa AINDA nao foi confirmada nesse momento,
+            # continua parado tentando confirmar (parado a leitura fica mais
+            # facil: sem vibracao, sem blur de movimento) ate
+            # PARADA_TEMPO_EXTRA_MAX_S a mais -- so ai desiste e segue reto.
+            tempo_esgotado = dt >= (cfgu.PARADA_TEMPO_S + cfgu.PARADA_TEMPO_EXTRA_MAX_S)
+            if dt >= cfgu.PARADA_TEMPO_S and (self._pos_parada_confirmada or tempo_esgotado):
+                if not self._pos_parada_confirmada:
+                    self._registrar("placa nao confirmada a tempo -- seguindo reto por padrao")
                 cmd.resetar_pid = True
                 self.frames_reengate = 0
                 self._executar_pos_parada()
