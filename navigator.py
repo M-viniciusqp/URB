@@ -211,6 +211,13 @@ class Navigator:
                         f"(depois: {tipo})")
         self._muda(APROXIMANDO)
 
+    def _bloquear_zebra_saida(self):
+        """A manobra acabou: a zebra da rua de DESTINO ja esta logo ali.
+        Ignora bordas de zebra por um tempo, senao o carro para uma 2a vez
+        de 3s na saida do cruzamento (o cooldown de _disparar vencia durante
+        a propria parada obrigatoria, antes da manobra comecar)."""
+        self._zebra_bloqueio_ate = time.time() + cfgu.ZEBRA_COOLDOWN_POS_MANOBRA_S
+
     def _executar_pos_parada(self):
         """Chamado quando os 3 segundos acabaram."""
         tipo = self.pos_parada or "frente"
@@ -330,6 +337,7 @@ class Navigator:
             if dt >= limite:
                 self.frames_reengate = 0
                 cmd.resetar_pid = True
+                self._bloquear_zebra_saida()
                 self._muda(REENGATANDO)
 
         elif e == TRAVESSANDO:
@@ -338,6 +346,7 @@ class Navigator:
             if dt >= cfgu.MANOBRA_TRAVESSIA_S:
                 self.frames_reengate = 0
                 cmd.resetar_pid = True
+                self._bloquear_zebra_saida()
                 self._muda(REENGATANDO)
 
         elif e == PARANDO:

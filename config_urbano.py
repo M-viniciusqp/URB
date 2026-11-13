@@ -56,16 +56,26 @@ SIGN_ROI_TOP_FRAC = 0.75     # procura placa so na parte de cima do frame
 # =====================================================================
 # 4. VELOCIDADES (override do config.py)
 # =====================================================================
-VELOCIDADE_BASE_URBANO    = 0.16
-VELOCIDADE_MINIMA_URBANO  = 0.14
-VELOCIDADE_PERDIDO_URBANO = 0.14
-VELOCIDADE_MANOBRA        = 0.16   # dentro do cruzamento
-VELOCIDADE_APROXIMACAO    = 0.14   # chegando na faixa pra parar
-VELOCIDADE_TUNEL          = 0.15
+# UMA velocidade so pra tudo: 17% de duty, constante. Mexa AQUI e so aqui.
+# Constante de proposito: sem variacao de velocidade o tempo das manobras
+# cronometradas fica repetivel e o carro nao "acorda" nem "dorme" em curva.
+VELOCIDADE_URBANA = 0.17
+
+VELOCIDADE_BASE_URBANO    = VELOCIDADE_URBANA
+VELOCIDADE_MINIMA_URBANO  = VELOCIDADE_URBANA   # min == base -> speed_for() nao varia
+VELOCIDADE_PERDIDO_URBANO = VELOCIDADE_URBANA
+VELOCIDADE_MANOBRA        = VELOCIDADE_URBANA   # dentro do cruzamento
+VELOCIDADE_APROXIMACAO    = VELOCIDADE_URBANA   # chegando na faixa pra parar
+VELOCIDADE_TUNEL          = VELOCIDADE_URBANA
 
 # Abaixo deste duty o motor nao vence o atrito e zumbe parado em vez de
-# andar devagar. Se o carro travar, suba as velocidades acima.
-VELOCIDADE_PISO_ESTIMADO = 0.18
+# andar devagar. Se o carro travar, suba VELOCIDADE_URBANA.
+VELOCIDADE_PISO_ESTIMADO = 0.17
+
+# Freio por FPS baixo (main: speed *= fps/FPS_MINIMO_SEGURO). A 17% de duty
+# qualquer reducao cai ABAIXO do piso do motor e o carro zumbe parado,
+# entao no urbano fica desligado. A velocidade ja e a minima possivel.
+FPS_FREIO_URBANO = False
 
 # MARCHA LENTA POR PULSO -- permite velocidade media ABAIXO do piso do
 # motor (liga no piso por uma fracao do tempo). DESLIGADO: troca
@@ -85,26 +95,35 @@ ARRANQUE_TEMPO_S = 0.12
 # VIES DO ALVO. Magnitude: 0.0 = meio da faixa | 1.0 = colado na linha.
 # SINAL: positivo aproxima da PONTILHADA, negativo aproxima da CONTINUA.
 #
-# Pela lei de transito o carro deve andar mais perto da PONTILHADA (o
-# centro da via) do que da CONTINUA (a borda/meio-fio) -- por isso o
-# sinal aqui e POSITIVO. MAS ha um risco ja documentado: com magnitude
-# alta (~0.45, o valor usado na corrida) o carro saia de uma curva ja
-# colado demais na divisoria central, e a visao "reengatava" no par de
-# linhas da pista OPOSTA -- ou seja, terminava andando na contramao.
-# Por isso a magnitude aqui fica BEM mais baixa que na corrida: puxa
-# pra perto da pontilhada sem colar nela, o suficiente pra sobrar
-# margem de sobra na saida de curva. Teste toda vez que mudar isso:
-# confira no REENGATANDO logo depois de uma curva (--debug) se o rotulo
-# 'lado_continuo' continua batendo com LADO_CONTINUO_ESPERADO. Se
-# aparecer o aviso "!! CONTINUA NA ESQUERDA" no log, o carro entrou na
-# contramao -- baixe este valor ainda mais (ou volte pra negativo).
-# Teto real: config.LANE_BIAS_LIMITE.
-LANE_BIAS_FRAC_URBANO = 0.25
+# O carro tem que andar SEMPRE PELO LADO DIREITO da pista, ou seja, mais
+# perto da CONTINUA (borda direita) do que da pontilhada (divisoria
+# central). Por isso o sinal e NEGATIVO. Alem de seguir a regra, isso
+# afasta o carro da contramao: mesmo errando um pouco, ele erra pra longe
+# da divisoria, nao pra cima dela. (O vies POSITIVO usado antes colava o
+# carro na divisoria e a visao chegava a "reengatar" no par de linhas da
+# pista oposta depois de uma curva.)
+#
+# Magnitude 0.40 = alvo deslocado 40% da meia-largura da pista pra direita
+# do centro. Nao baixe muito: o controle tem zona morta (DEAD_ZONE_URBANO
+# 0.07 e SERVO_DEADBAND_URBANO 2 graus, que com PID_KP_URBANO=0.24 ignora
+# erro menor que ~0.17) e um vies pequeno some dentro dela -- o carro
+# continua andando no meio. Se a roda direita encostar/pisar na continua,
+# baixe pra -0.30; se ainda andar no meio, suba pra -0.50.
+# Teto: config.LANE_BIAS_LIMITE.
+LANE_BIAS_FRAC_URBANO = -0.40
 
 # Em mao direita, a linha CONTINUA (borda da rua) fica a DIREITA do carro
 # e a pontilhada a esquerda. Se a visao reportar continua na ESQUERDA, o
 # carro esta na via contraria -- o main avisa no log.
 LADO_CONTINUO_ESPERADO = "direita"
+
+# FORCA o lado do vies em vez de deixar a visao "adivinhar" qual lado e a
+# continua (contando buracos na pontilhada). Adivinhar falha justamente nos
+# trechos onde mais importa: logo depois de uma curva, ou onde a pontilhada
+# esta apagada/suja. Como a regra e "mao direita", a resposta e conhecida de
+# antemao. A deteccao automatica continua rodando so pra gerar o aviso de
+# CONTRAMAO no log. Use None pra voltar ao modo automatico.
+LADO_CONTINUO_FORCADO = LADO_CONTINUO_ESPERADO
 
 # LIMITADOR DE TAXA DO ESTERCO (unidades de turn por segundo).
 # 3.0 = varre de -1 a +1 em ~0.66s. Menor = mais suave e mais lento pra
@@ -129,7 +148,15 @@ ZEBRA_TOP_FRAC = 0.25
 ZEBRA_MIN_LINHAS = 3
 ZEBRA_HIT_FRAMES = 1          # entra rapido (cada frame de espera = cm andados)
 ZEBRA_MISS_FRAMES = 6         # sai devagar (nao pisca no meio da travessia)
-ZEBRA_COOLDOWN_S = 3.0        # evita a zebra da SAIDA disparar 2a manobra
+ZEBRA_COOLDOWN_S = 3.0        # (so cobre a fase de parada)
+
+# BUG CORRIGIDO: o cooldown acima comeca quando a zebra e AVISTADA, e a
+# parada obrigatoria sozinha (aproximacao + freio + 3s parado) ja passa de
+# 3s -- quando a manobra terminava, o cooldown tinha vencido e a zebra da
+# SAIDA do cruzamento disparava uma 2a parada de 3s. Agora o bloqueio
+# comeca quando a MANOBRA ACABA. Valor em s a velocidade de referencia;
+# e reescalado junto com as manobras (mais lento = mais tempo).
+ZEBRA_COOLDOWN_POS_MANOBRA_S = 3.0
 
 # PARADA OBRIGATORIA: o gatilho e a posicao da zebra na IMAGEM.
 # Parou em cima da faixa -> BAIXE. Parou longe demais -> suba.
@@ -216,6 +243,7 @@ if MANOBRA_AUTOESCALA and VELOCIDADE_MANOBRA > 0:
     MANOBRA_CURVA_DIR_S  *= _k
     MANOBRA_CURVA_ESQ_S  *= _k
     MANOBRA_TRAVESSIA_S  *= _k
+    ZEBRA_COOLDOWN_POS_MANOBRA_S *= _k
 
 MANOBRA_REENGATE_FRAMES = 25  # frames sem faixa tolerados no reengate
 
@@ -255,6 +283,11 @@ def aplicar_overrides():
     config.VELOCIDADE_MINIMA  = VELOCIDADE_MINIMA_URBANO
     config.VELOCIDADE_PERDIDO = VELOCIDADE_PERDIDO_URBANO
     config.LANE_BIAS_FRAC     = LANE_BIAS_FRAC_URBANO
+    config.LADO_CONTINUO_FORCADO = LADO_CONTINUO_FORCADO
+    # o config.py da corrida tem piso de curva fechada em 0.38: sem isso,
+    # speed_for() SOBE a velocidade em curva fechada (so o teto do main
+    # segurava). Alinha com a velocidade urbana.
+    config.VELOCIDADE_MINIMA_FECHADA = VELOCIDADE_MINIMA_URBANO
 
     _kp_antes, _kd_antes = config.PID_KP, config.PID_KD
     config.PID_KP = PID_KP_URBANO

@@ -85,7 +85,11 @@ def main():
 
     vision = LaneVision()
     pid = SteeringPID()
-    placas = SignTracker()
+    # Com duas cameras o main JA salteia a leitura (SIGN_SKIP_FRAMES). Se o
+    # tracker salteasse de novo, a deteccao rodaria a cada 3x3=9 frames e as
+    # 3 confirmacoes levariam ~27 frames de placa visivel. Com camera unica
+    # o main chama update() todo frame, entao ai o tracker que salteia.
+    placas = SignTracker(pular_frames=1 if DUAS_CAMERAS else None)
     zebra_det = CrosswalkDetector()
     nav = Navigator()
     motor = Motor(config.ENA_A, config.IN1_A, config.IN2_A,
@@ -180,7 +184,7 @@ def main():
                 frame_anterior_confiavel = True
                 turn = pid.update(res.error, res.heading)
                 speed = speed_for(turn, res.curvature)
-                if fps_medido < config.FPS_MINIMO_SEGURO:
+                if cfgu.FPS_FREIO_URBANO and fps_medido < config.FPS_MINIMO_SEGURO:
                     speed *= max(0.35, fps_medido / config.FPS_MINIMO_SEGURO)
             elif cmd.tolera_perdido or vision.lost_frames <= config.MAX_FRAMES_PERDIDO:
                 frame_anterior_confiavel = False
@@ -195,7 +199,14 @@ def main():
 
             # imediato=True nas manobras: ali o esterco no talo e
             # intencional e nao pode ser rampado (comeria o tempo de curva)
-            motor.move(speed, turn, imediato=not cmd.usa_faixa)
+            if cmd.frear:
+                # parada obrigatoria: freio ATIVO (curto na ponte H), nao
+                # so PWM=0 -- o navigator pedia (cmd.frear) mas o main nunca
+                # chamava, e o carro seguia rolando por inercia.
+                motor.turn_to(0.0, imediato=True)
+                motor.brake()
+            else:
+                motor.move(speed, turn, imediato=not cmd.usa_faixa)
 
             t_cam += (t1 - t0); t_sign += (t2 - t1); t_vis += (t4 - t2)
 

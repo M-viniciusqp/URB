@@ -165,3 +165,27 @@ muda esses tempos.
   `config_urbano.py`.
 - **Stop**: tratado como destino final (`PARADA_DEFINITIVA = True`).
   Se for um PARE comum (para 3 s e segue), troque para `False`.
+
+## Perfil atual: lento, mao direita
+
+- **Velocidade unica de 17%**: `VELOCIDADE_URBANA` no `config_urbano.py`.
+  Base, minima, perdido, manobra, aproximacao e tunel usam ela. O freio por
+  FPS baixo (`FPS_FREIO_URBANO`) fica desligado: a 17% qualquer reducao cai
+  abaixo do piso do motor e ele zumbe parado. Se o carro nao sair do lugar,
+  suba `VELOCIDADE_URBANA` (e `VELOCIDADE_PISO_ESTIMADO`).
+- **Sempre pela direita**: `LANE_BIAS_FRAC_URBANO = -0.40` (negativo = perto
+  da faixa continua) e `LADO_CONTINUO_FORCADO = "direita"` (a visao nao
+  adivinha mais o lado). Se a roda pisar na continua: `-0.30`. Se continuar
+  no meio da pista: `-0.50` (o controle tem zona morta e vies pequeno some).
+- **Zebra da saida**: depois da manobra a zebra e ignorada por
+  `ZEBRA_COOLDOWN_POS_MANOBRA_S` (escala com a velocidade). Antes o carro
+  parava uma 2a vez de 3 s na saida do cruzamento.
+- **Parada**: o `main_urbano.py` agora usa o freio ativo (`motor.brake()`) na
+  parada obrigatoria; antes so cortava o PWM e o carro rolava.
+- **Placas**: removido o salto de frames duplicado (a deteccao rodava a cada
+  9 frames em vez de 3) e os votos de confirmacao agora decaem 1 por frame
+  perdido em vez de zerar.
+- **Recalibre as manobras** (`MANOBRA_AVANCO_*`, `MANOBRA_CURVA_*`) na pista
+  com a bateria da prova: os tempos sao reescalados por 0.24/0.17, mas a
+  relacao duty -> velocidade nao e linear perto do piso do motor.
+

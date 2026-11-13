@@ -145,8 +145,13 @@ class SignTracker:
     algumas aproximacoes -- e o robo passa reto pela placa.
     """
 
-    def __init__(self):
+    def __init__(self, pular_frames=None):
+        """pular_frames: roda a deteccao 1 a cada N chamadas de update().
+        None = usa cfgu.SIGN_SKIP_FRAMES (camera unica, update todo frame).
+        1 = nao salteia aqui (quem chama ja salteia -- duas cameras)."""
         self.detector = SignDetector()
+        self._skip = (cfgu.SIGN_SKIP_FRAMES if pular_frames is None
+                      else max(1, int(pular_frames)))
         self._votos = {}          # id -> frames seguidos confirmando
         self._ultima_dist = {}    # id -> ultima distancia vista
         self._sumido = {}         # id -> frames desde que sumiu (se ja confirmado e perto)
@@ -173,7 +178,7 @@ class SignTracker:
         # amostragem: nao precisa rodar ArUco em todo frame se a velocidade
         # e baixa. Nos frames pulados, o estado (votos/sumido) fica parado,
         # o que e correto -- nao conta ausencia que nao foi verificada.
-        if cfgu.SIGN_SKIP_FRAMES > 1 and (self._frame_n % cfgu.SIGN_SKIP_FRAMES):
+        if self._skip > 1 and (self._frame_n % self._skip):
             return None
 
         cruas = self.detector.detect(frame)
@@ -213,8 +218,19 @@ class SignTracker:
                     ev = Evento(cfgu.PLACAS[id_], id_, self._ultima_dist.get(id_, 0.0))
                     self.registrar_execucao(id_)
                     return ev
+            elif not confirmada:
+                # ainda juntando votos e o marcador falhou neste frame. A
+                # leitura de longe PISCA (marcador de poucos pixels, borrao,
+                # reflexo) -- zerar tudo no primeiro frame perdido exigia N
+                # leituras PERFEITAMENTE seguidas e a placa quase nunca
+                # confirmava. Perde 1 voto e segue; sem leitura por varios
+                # frames, os votos chegam a zero e ela e esquecida.
+                self._votos[id_] -= 1
+                if self._votos[id_] <= 0:
+                    self._votos.pop(id_, None)
+                    self._ultima_dist.pop(id_, None)
             else:
-                # nao confirmada ou longe: era ruido de passagem, esquece
+                # confirmada mas LONGE: era so uma placa passando ao fundo
                 self._votos.pop(id_, None)
                 self._ultima_dist.pop(id_, None)
 

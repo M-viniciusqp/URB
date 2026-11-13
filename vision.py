@@ -420,7 +420,17 @@ class LaneVision:
                 #               pontilhada e a divisoria de mao dupla, entao
                 #               colar nela e andar na beira da contramao)
                 sentido = -1.0 if config.LANE_BIAS_FRAC > 0 else 1.0
-                alvo += sentido * self._sinal_continuo * mag * hw_look
+                # lado da continua: aprendido (padrao) ou FORCADO pelo
+                # config (urbano = mao direita -> continua sempre a direita).
+                # Forcar elimina o risco de a visao adivinhar o lado errado
+                # logo apos uma curva. Na corrida o atributo nao existe.
+                sinal = self._sinal_continuo
+                forcado = getattr(config, "LADO_CONTINUO_FORCADO", None)
+                if forcado == "direita":
+                    sinal = 1.0
+                elif forcado == "esquerda":
+                    sinal = -1.0
+                alvo += sentido * sinal * mag * hw_look
                 alvo = max(0.0, min(float(self.W), alvo))
 
         self.last_center = 0.6 * self.last_center + 0.4 * media
