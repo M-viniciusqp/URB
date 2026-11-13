@@ -169,8 +169,8 @@ muda esses tempos.
 
 ## Perfil atual: lento, mao direita
 
-- **Velocidade minima**: cruzeiro `VELOCIDADE_URBANA = 0.13` e o resto em
-  0.12 (manobra, aproximacao, perdido, tunel). Descubra o piso REAL do seu
+- **Velocidade minima**: cruzeiro `VELOCIDADE_URBANA = 0.18` e o resto em
+  0.17 (manobra, aproximacao, perdido, tunel; piso medido = 0.17). Descubra o piso REAL do seu
   motor com o carro no chao: `python3 test_piso.py` (Ctrl+C no primeiro duty
   em que ele anda firme; ele imprime os valores pra colar no config). O
   freio por FPS baixo (`FPS_FREIO_URBANO`) fica desligado. Baixar a

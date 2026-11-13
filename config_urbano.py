@@ -75,18 +75,20 @@ SIGN_ROI_TOP_FRAC = 0.75     # procura placa so na parte de cima do frame
 # (x REF/velocidade), mas perto do piso duty->velocidade nao e linear: o
 # carro anda MENOS do que a conta preve. Se a curva sair fechada de menos,
 # suba MANOBRA_CURVA_* um pouco; se o avanco ficar curto, suba MANOBRA_AVANCO_*.
-VELOCIDADE_URBANA = 0.13
+#
+# MEDIDO no carro com test_piso.py: piso = 0.17 (cruzeiro 0.18 = piso + folga).
+VELOCIDADE_URBANA = 0.18
 
 VELOCIDADE_BASE_URBANO    = VELOCIDADE_URBANA
-VELOCIDADE_MINIMA_URBANO  = 0.12
-VELOCIDADE_PERDIDO_URBANO = 0.12
-VELOCIDADE_MANOBRA        = 0.12   # dentro do cruzamento
-VELOCIDADE_APROXIMACAO    = 0.12   # chegando na faixa pra parar
-VELOCIDADE_TUNEL          = 0.12
+VELOCIDADE_MINIMA_URBANO  = 0.17
+VELOCIDADE_PERDIDO_URBANO = 0.17
+VELOCIDADE_MANOBRA        = 0.17   # dentro do cruzamento
+VELOCIDADE_APROXIMACAO    = 0.17   # chegando na faixa pra parar
+VELOCIDADE_TUNEL          = 0.17
 
 # Abaixo deste duty o motor nao vence o atrito e zumbe parado em vez de
-# andar devagar. Valor MEDIDO por test_piso.py -- ajuste ao resultado dele.
-VELOCIDADE_PISO_ESTIMADO = 0.12
+# andar devagar. Valor MEDIDO por test_piso.py.
+VELOCIDADE_PISO_ESTIMADO = 0.17
 
 # Freio por FPS baixo (main: speed *= fps/FPS_MINIMO_SEGURO). A 17% de duty
 # qualquer reducao cai ABAIXO do piso do motor e o carro zumbe parado,
