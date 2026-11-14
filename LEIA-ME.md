@@ -222,3 +222,10 @@ muda esses tempos.
   fazia o carro voltar inclinado. Pra acertar o reto: `RE_TURN` (esterco fixo)
   e `RE_BALANCO_B` (potencia do motor B so na re), testando com
   `python3 test_re.py [RE_TURN] [RE_BALANCO_B] [segundos]`.
+- **Zebra do cruzamento seguinte (rua curta)**: depois de uma manobra a zebra e
+  ignorada por `ZEBRA_COOLDOWN_POS_MANOBRA_S` (pra nao parar na zebra de saida),
+  mas em ruas curtas a zebra do PROXIMO cruzamento aparece dentro dessa janela
+  e o carro passava direto. Agora ela vale como nova (e ele para) se: passaram
+  `ZEBRA_NOVA_MIN_S` (2 s) do fim da manobra, houve `ZEBRA_NOVA_LIVRE_FRAMES`
+  (15) frames sem zebra e ela apareceu longe (`ZEBRA_NOVA_FRAC_MAX`). Parou de
+  novo na zebra de saida: suba `ZEBRA_NOVA_MIN_S`. Ainda passa direto: baixe.

@@ -197,6 +197,16 @@ ZEBRA_COOLDOWN_S = 3.0        # (so cobre a fase de parada)
 # e reescalado junto com as manobras (mais lento = mais tempo).
 ZEBRA_COOLDOWN_POS_MANOBRA_S = 3.0
 
+# Zebra do PROXIMO cruzamento dentro dessa janela de bloqueio (ruas curtas).
+# Conta como zebra nova (e o carro PARA) se: ja passou ZEBRA_NOVA_MIN_S desde o
+# fim da manobra, ficou ZEBRA_NOVA_LIVRE_FRAMES frames sem enxergar zebra
+# (a de saida ficou pra tras) e ela apareceu LONGE (frac <= ZEBRA_NOVA_FRAC_MAX).
+# Parou de novo na zebra de SAIDA do mesmo cruzamento? suba ZEBRA_NOVA_MIN_S.
+# Ainda passa direto pelo proximo cruzamento? baixe ZEBRA_NOVA_MIN_S (1.5).
+ZEBRA_NOVA_MIN_S = 2.0
+ZEBRA_NOVA_LIVRE_FRAMES = 15
+ZEBRA_NOVA_FRAC_MAX = 0.55
+
 # PARADA OBRIGATORIA: o gatilho e a posicao da zebra na IMAGEM.
 # Parou em cima da faixa -> BAIXE. Parou longe demais -> suba.
 # Lembre da ZONA CEGA: frac=1.0 nao e "encostando", e "ja passou".

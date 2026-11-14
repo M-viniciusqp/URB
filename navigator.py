@@ -106,6 +106,8 @@ class Navigator:
         self._zebra_anterior = False
         self._zebra_frac = 0.0
         self._zebra_bloqueio_ate = 0.0
+        self._t_fim_manobra = 0.0   # quando a ultima manobra terminou
+        self._zebra_livre = 0       # frames SEGUIDOS sem zebra desde o fim da manobra
         self._zebra_max = 0.0       # maior frac visto desde que a zebra foi avistada
         self._zebra_sem = 0         # frames SEGUIDOS sem enxergar barra nenhuma
         self._re_n = 0              # re's ja feitas neste cruzamento
@@ -241,6 +243,8 @@ class Navigator:
         de 3s na saida do cruzamento (o cooldown de _disparar vencia durante
         a propria parada obrigatoria, antes da manobra comecar)."""
         self._zebra_bloqueio_ate = time.time() + cfgu.ZEBRA_COOLDOWN_POS_MANOBRA_S
+        self._t_fim_manobra = time.time()
+        self._zebra_livre = 0
 
     def _executar_pos_parada(self):
         """Chamado quando a parada obrigatoria termina."""
@@ -291,9 +295,29 @@ class Navigator:
             self.intencao = None
 
         # ---- borda de subida da zebra, so fora de manobra ----
-        zebra_nova = (zebra_presente and not self._zebra_anterior
-                      and agora >= self._zebra_bloqueio_ate
-                      and self.estado in (SEGUINDO, REENGATANDO))
+        borda = (zebra_presente and not self._zebra_anterior
+                 and self.estado in (SEGUINDO, REENGATANDO))
+        zebra_nova = borda and agora >= self._zebra_bloqueio_ate
+
+        # ZEBRA DO PROXIMO CRUZAMENTO DENTRO DA JANELA DE BLOQUEIO. O bloqueio
+        # existe pra ignorar a zebra de SAIDA do cruzamento que acabou de ser
+        # feito, mas em ruas curtas a zebra do cruzamento SEGUINTE aparece
+        # ainda dentro dele -- e o carro passava por cima sem parar. Vale como
+        # zebra NOVA se: ja passou ZEBRA_NOVA_MIN_S do fim da manobra, houve
+        # pelo menos ZEBRA_NOVA_LIVRE_FRAMES frames SEM zebra (a de saida ja
+        # ficou pra tras) e ela apareceu LONGE (frac pequeno = vindo de frente).
+        if (borda and not zebra_nova
+                and (agora - self._t_fim_manobra) >= cfgu.ZEBRA_NOVA_MIN_S
+                and self._zebra_livre >= cfgu.ZEBRA_NOVA_LIVRE_FRAMES
+                and 0.0 < zebra_frac <= cfgu.ZEBRA_NOVA_FRAC_MAX):
+            self._registrar("zebra de um NOVO cruzamento (dentro do bloqueio "
+                            "pos-manobra) -- vou parar")
+            zebra_nova = True
+
+        if zebra_presente or zebra_frac > 0.0:
+            self._zebra_livre = 0
+        else:
+            self._zebra_livre += 1
         self._zebra_anterior = zebra_presente
 
         if zebra_nova:
