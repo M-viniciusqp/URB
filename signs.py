@@ -165,6 +165,28 @@ class SignTracker:
         self.visivel = []         # ultimas leituras validas (pra HUD)
         self.desconhecidos = {}   # id -> frames, pra IDs fora do mapa PLACAS
         self._avisados = set()
+        self._diag_t = {}         # id -> ultimo aviso de diagnostico (throttle)
+        self.cruas = []           # leituras cruas do ultimo frame (antes dos filtros)
+
+    def _diagnostica(self, l):
+        """Placa lida pelo ArUco mas DESCARTADA pelos filtros: explica o motivo.
+        Sem isso o HUD mostrava 'placas: -' e parecia que a camera nao viu nada."""
+        if l.tipo is None:
+            return                      # ja avisado em 'desconhecidos'
+        if self._em_cooldown(l.id):
+            motivo = "em cooldown (acabou de ser obedecida)"
+        elif l.dist < cfgu.SIGN_DIST_MIN_M:
+            motivo = f"PERTO demais (min {cfgu.SIGN_DIST_MIN_M:.2f} m)"
+        elif l.dist > cfgu.SIGN_DIST_MAX_M:
+            motivo = f"LONGE demais (max {cfgu.SIGN_DIST_MAX_M:.2f} m)"
+        else:
+            return
+        agora = time.time()
+        if agora - self._diag_t.get(l.id, 0.0) < 1.0:
+            return
+        self._diag_t[l.id] = agora
+        print(f"  [placa] id {l.id} ({l.tipo}) lido a {l.dist:.2f} m "
+              f"(lado {l.lado_px:.0f}px) -- DESCARTADO: {motivo}")
 
     def _em_cooldown(self, id_):
         return time.time() < self._cooldown.get(id_, 0.0)
@@ -187,6 +209,9 @@ class SignTracker:
             return None
 
         cruas = self.detector.detect(frame)
+        self.cruas = cruas
+        for l in cruas:
+            self._diagnostica(l)
 
         # IDs lidos mas AUSENTES do mapa PLACAS. Antes isso era descartado
         # em silencio -- o HUD mostrava "placas: -" e dava a impressao de

@@ -48,7 +48,12 @@ PLACAS = {
 # (calibrados na pista) ficam como estao.
 SIGN_CONFIRMA_FRAMES = 2     # frames concordantes pra aceitar um ID
 SIGN_DIST_MIN_M = 0.15
-SIGN_DIST_MAX_M = 2.00
+# 2.00 -> 3.00: a distancia vem de um FOCAL_PX nao calibrado (640 chutado; o
+# real de uma webcam 640x480 costuma ser ~450-550), o que SUPERESTIMA a
+# distancia em ate ~40%. Com a placa a 1.5 m reais o carro "via" 2.1 m e o
+# filtro jogava a placa fora em silencio ("placas: -" o tempo todo).
+# Calibre com: python3 test_signs.py --calib 0.50
+SIGN_DIST_MAX_M = 3.00
 
 # Distancia em que a placa ARMA a intencao. A placa diz O QUE fazer;
 # QUANDO fazer vem da faixa de pedestre (crosswalk.py).
@@ -59,7 +64,7 @@ SIGN_DIST_ACIONA_M = 1.20
 # zebra, e pode parar com a placa a 1.3-1.6 m -- parado, ela nunca chegava
 # a 1.20 m, nunca armava e o carro seguia RETO em vez de virar. Fica
 # abaixo de SIGN_DIST_MAX_M pra evitar placa de outra rua.
-SIGN_DIST_ACIONA_PARADO_M = 1.70
+SIGN_DIST_ACIONA_PARADO_M = 2.40
 
 INTENCAO_VALIDA_S = 8.0      # intencao armada expira sem cruzamento
 SIGN_SUMIU_ACIONA_FRAMES = 4 # arma tambem se o marcador sumir ja perto
