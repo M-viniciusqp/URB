@@ -103,7 +103,11 @@ VELOCIDADE_URBANA = 0.18
 VELOCIDADE_BASE_URBANO    = VELOCIDADE_URBANA
 VELOCIDADE_MINIMA_URBANO  = 0.17
 VELOCIDADE_PERDIDO_URBANO = 0.17
-VELOCIDADE_MANOBRA        = 0.17   # dentro do cruzamento
+# 0.17 -> 0.19: um pouquinho mais rapido nas curvas (os motores estavam sem
+# forca). Os tempos da secao 6 se reescalam sozinhos (autoescala). Se a curva
+# passar dos 90 graus: baixe VELOCIDADE_MANOBRA (0.18). Se faltar giro/ficar
+# curta: suba (0.20) ou aumente MANOBRA_CURVA_*.
+VELOCIDADE_MANOBRA        = 0.19   # dentro do cruzamento
 VELOCIDADE_APROXIMACAO    = 0.17   # chegando na faixa pra parar
 VELOCIDADE_TUNEL          = 0.17
 
