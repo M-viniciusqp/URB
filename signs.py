@@ -152,6 +152,11 @@ class SignTracker:
         self.detector = SignDetector()
         self._skip = (cfgu.SIGN_SKIP_FRAMES if pular_frames is None
                       else max(1, int(pular_frames)))
+        # Distancia em que a placa confirmada ARMA a intencao. O main troca
+        # esse valor em tempo de execucao: com o carro PARADO na zebra ele
+        # sobe pra SIGN_DIST_ACIONA_PARADO_M (a placa nao vai chegar mais
+        # perto, e antes ficava sem armar e o carro seguia reto).
+        self.dist_aciona = cfgu.SIGN_DIST_ACIONA_M
         self._votos = {}          # id -> frames seguidos confirmando
         self._ultima_dist = {}    # id -> ultima distancia vista
         self._sumido = {}         # id -> frames desde que sumiu (se ja confirmado e perto)
@@ -241,7 +246,7 @@ class SignTracker:
             self._sumido.pop(l.id, None)
 
             if (self._votos[l.id] >= cfgu.SIGN_CONFIRMA_FRAMES
-                    and l.dist <= cfgu.SIGN_DIST_ACIONA_M):
+                    and l.dist <= self.dist_aciona):
                 ev = Evento(l.tipo, l.id, l.dist)
                 self.registrar_execucao(l.id)
                 return ev

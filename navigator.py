@@ -31,12 +31,16 @@ ABRINDO      : so curva a DIREITA: servo um pouco pra esquerda, pra abrir o
 CURVANDO     : servo no talo por tempo fixo, sem PID.
 TRAVESSANDO  : cruzando em frente, em reta, sem PID.
 REENGATANDO  : PID de volta, tolerando ausencia de faixa por N frames.
-PARANDO      : frenagem suave (na faixa de pedestre, como manda a lei).
-PARADO       : parado.
+PARANDO      : frenagem (na faixa de pedestre, como manda a lei).
+RECUANDO     : RE em linha reta quando o carro passou da faixa (ou a deixou
+               quase debaixo do capo): volta ate a zebra reaparecer a uma
+               distancia segura. So depois disso comeca a espera.
+PARADO       : parado (minimo PARADA_TEMPO_S; apos re, minimo RE_ESPERA_MIN_S).
 FIM          : missao encerrada.
 """
 
 import time
+from collections import deque
 
 import config
 import config_urbano as cfgu
@@ -50,6 +54,7 @@ CURVANDO = "CURVANDO"
 TRAVESSANDO = "TRAVESSANDO"
 REENGATANDO = "REENGATANDO"
 PARANDO = "PARANDO"
+RECUANDO = "RECUANDO"
 PARADO = "PARADO"
 FIM = "FIM"
 
@@ -59,7 +64,7 @@ FIM = "FIM"
 # ou ja parado na faixa. Recusar placa nessa janela e recusar a placa
 # justamente na hora em que ela aparece -- foi esse o bug que fazia o
 # carro parar certo e depois seguir reto ignorando a ordem.
-_ACEITA_PLACA = (SEGUINDO, REENGATANDO, APROXIMANDO, PARANDO, PARADO)
+_ACEITA_PLACA = (SEGUINDO, REENGATANDO, APROXIMANDO, PARANDO, RECUANDO, PARADO)
 
 # Estados em que a decisao JA foi tomada e o carro esta executando. Aqui
 # sim a placa e recusada: no meio do cruzamento o que a camera ve e quase
@@ -101,6 +106,11 @@ class Navigator:
         self._zebra_anterior = False
         self._zebra_frac = 0.0
         self._zebra_bloqueio_ate = 0.0
+        self._zebra_max = 0.0       # maior frac visto desde que a zebra foi avistada
+        self._zebra_sem = 0         # frames SEGUIDOS sem enxergar barra nenhuma
+        self._re_n = 0              # re's ja feitas neste cruzamento
+        self._re_viu = False        # a zebra foi vista durante a re atual
+        self._frac_hist = deque(maxlen=10)  # ultimos frac (carro parou de deslizar?)
 
         self._bloqueio_ate = 0.0
         self._bloqueio_tentativas = 0
@@ -157,7 +167,7 @@ class Navigator:
         # que fazer depois da parada ainda nao foi executada -- entao a
         # placa que acabou de ser lida corrige essa decisao em vez de
         # ficar esperando o proximo cruzamento (que nunca viria).
-        if self.estado in (APROXIMANDO, PARANDO, PARADO):
+        if self.estado in (APROXIMANDO, PARANDO, RECUANDO, PARADO):
             anterior = self.pos_parada
             self.pos_parada = tipo
             self._pos_parada_confirmada = True
@@ -215,6 +225,8 @@ class Navigator:
         self._zebra_bloqueio_ate = time.time() + cfgu.ZEBRA_COOLDOWN_S
         self.pos_parada = tipo
         self._pos_parada_confirmada = self.intencao is not None
+        self._zebra_max = 0.0
+        self._re_n = 0
         self.intencao = None
         self._registrar(f"faixa de pedestre a frente -> parando "
                         f"(depois: {tipo})")
@@ -259,6 +271,11 @@ class Navigator:
             zebra_presente = zebra.presente
             zebra_frac = zebra.frac_proximidade
         self._zebra_frac = zebra_frac
+        # "visivel" = alguma barra de zebra na varredura NESTE frame
+        self._zebra_sem = 0 if zebra_frac > 0.0 else self._zebra_sem + 1
+        self._frac_hist.append(zebra_frac)
+        if self.estado in (APROXIMANDO, PARANDO):
+            self._zebra_max = max(self._zebra_max, zebra_frac)
         cmd = Comando()
         agora = time.time()
 
@@ -382,8 +399,40 @@ class Navigator:
             cmd.speed = 0.0
             cmd.frear = True
             if dt >= cfgu.PARADA_FREIO_S:
-                self._registrar(f"PARADO na faixa ({cfgu.PARADA_TEMPO_S:.0f}s)")
-                self._muda(PARADO)
+                decisao = self._avalia_re(dt - cfgu.PARADA_FREIO_S)
+                if decisao is True:
+                    self._re_n += 1
+                    self._registrar(f"passou da faixa (frac {self._zebra_frac:.2f}, "
+                                    f"max {self._zebra_max:.2f}) -> RE "
+                                    f"({self._re_n}/{cfgu.RE_TENTATIVAS_MAX})")
+                    self._re_viu = False
+                    self._muda(RECUANDO)
+                elif decisao is False:
+                    self._registrar(f"PARADO antes da faixa ({self._espera_parado():.0f}s)")
+                    self._muda(PARADO)
+                # None = a zebra piscou agora; espera mais um frame pra decidir
+
+        elif e == RECUANDO:
+            cmd.usa_faixa = False
+            cmd.turn = 0.0                       # re em linha reta
+            cmd.speed = -cfgu.VELOCIDADE_RE
+            if self._zebra_frac > 0.0:
+                self._re_viu = True
+            visivel_ok = (self._zebra_frac > 0.0
+                          and self._zebra_frac <= cfgu.RE_ALVO_FRAC)
+            # a zebra ja foi vista nesta re e SUMIU de novo: foi pro fundo
+            # da imagem (longe), ou seja, ja recuou o bastante
+            longe = self._re_viu and self._zebra_sem >= 3
+            seguro = visivel_ok or longe
+            if (dt >= cfgu.RE_MIN_S and seguro) or dt >= cfgu.RE_MAX_S:
+                if not seguro:
+                    self._registrar("re: tempo maximo -- parando assim mesmo")
+                else:
+                    self._registrar("re concluida (zebra a frac "
+                                    f"{self._zebra_frac:.2f})" if visivel_ok
+                                    else "re concluida (zebra ficou longe)")
+                self._zebra_max = 0.0
+                self._muda(PARANDO)
 
         elif e == PARADO:
             cmd.usa_faixa = False
@@ -394,8 +443,9 @@ class Navigator:
             # continua parado tentando confirmar (parado a leitura fica mais
             # facil: sem vibracao, sem blur de movimento) ate
             # PARADA_TEMPO_EXTRA_MAX_S a mais -- so ai desiste e segue reto.
-            tempo_esgotado = dt >= (cfgu.PARADA_TEMPO_S + cfgu.PARADA_TEMPO_EXTRA_MAX_S)
-            if dt >= cfgu.PARADA_TEMPO_S and (self._pos_parada_confirmada or tempo_esgotado):
+            espera = self._espera_parado()
+            tempo_esgotado = dt >= (espera + cfgu.PARADA_TEMPO_EXTRA_MAX_S)
+            if dt >= espera and (self._pos_parada_confirmada or tempo_esgotado):
                 if not self._pos_parada_confirmada:
                     self._registrar("placa nao confirmada a tempo -- seguindo reto por padrao")
                 cmd.resetar_pid = True
@@ -416,6 +466,31 @@ class Navigator:
             cmd.usa_faixa = True
 
     # ------------------------------------------------------------------
+    def _espera_parado(self):
+        """Tempo minimo parado. Depois de uma RE, nunca menos que
+        RE_ESPERA_MIN_S (contado a partir de o carro parar de vez)."""
+        if self._re_n > 0:
+            return max(cfgu.PARADA_TEMPO_S, cfgu.RE_ESPERA_MIN_S)
+        return cfgu.PARADA_TEMPO_S
+
+    def _avalia_re(self, extra):
+        """Parado (freio feito): precisa dar re? True / False / None (ainda
+        nao da pra dizer -- a zebra piscou; no maximo 0.5 s de espera)."""
+        if not cfgu.RE_ATIVA or self._re_n >= cfgu.RE_TENTATIVAS_MAX:
+            return False
+        # so decide com o carro PARADO de verdade: o frac da zebra para de
+        # mudar. Frear nao e instantaneo -- decidir no meio do deslize usa
+        # uma posicao que ainda vai mudar.
+        h = self._frac_hist
+        parou = len(h) == h.maxlen and (max(h) - min(h)) <= 0.01
+        if not parou and extra < 0.8:
+            return None
+        if self._zebra_frac > 0.0:                     # zebra visivel
+            return self._zebra_frac >= cfgu.RE_GATILHO_FRAC
+        if self._zebra_sem >= 3 or extra >= 0.5:       # sumiu de vez
+            return self._zebra_max >= cfgu.RE_PERDEU_FRAC
+        return None
+
     def teto_velocidade(self):
         if self.em_tunel:
             return cfgu.VELOCIDADE_TUNEL

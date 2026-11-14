@@ -54,6 +54,13 @@ SIGN_DIST_MAX_M = 2.00
 # QUANDO fazer vem da faixa de pedestre (crosswalk.py).
 SIGN_DIST_ACIONA_M = 1.20
 
+# Com o carro PARADO na zebra (APROXIMANDO/PARANDO/PARADO) a placa arma ate
+# esta distancia. Motivo: o carro agora freia no 1o instante em que ve a
+# zebra, e pode parar com a placa a 1.3-1.6 m -- parado, ela nunca chegava
+# a 1.20 m, nunca armava e o carro seguia RETO em vez de virar. Fica
+# abaixo de SIGN_DIST_MAX_M pra evitar placa de outra rua.
+SIGN_DIST_ACIONA_PARADO_M = 1.70
+
 INTENCAO_VALIDA_S = 8.0      # intencao armada expira sem cruzamento
 SIGN_SUMIU_ACIONA_FRAMES = 4 # arma tambem se o marcador sumir ja perto
 SIGN_COOLDOWN_S = 6.0        # ignora o MESMO ID depois de obedecido
@@ -125,7 +132,14 @@ ARRANQUE_TEMPO_S = 0.12
 # derrubava ela; mais um pouco pra pontilhada afasta. Alvo desloca ~10 px
 # a mais (~2-3 cm). Proximo passo se precisar: 0.80. Teto: LANE_BIAS_LIMITE
 # (0.90). Se aparecer "!! CONTINUA NA ESQUERDA" no log, volte pra 0.55.
-LANE_BIAS_FRAC_URBANO = 0.70
+#
+# 0.70 -> 0.35, JUNTO com o KI novo (ver PID_KI_URBANO). Antes o carro nao
+# chegava ao alvo (controle so proporcional): ficava colado na CONTINUA
+# mesmo com 0.70. Agora ele CHEGA no alvo, e 0.70 seria colar na pontilhada
+# (na simulacao, a ~4 cm da linha). 0.35 = alvo a 35% da meia-largura pro
+# lado da pontilhada. Quer mais pra pontilhada? 0.45. Mais pro centro? 0.25.
+# 0.35 -> 0.50 (pedido: andar mais perto da pontilhada). Mais ainda: 0.60.
+LANE_BIAS_FRAC_URBANO = 0.50
 
 # Em mao direita, a linha CONTINUA (borda da rua) fica a DIREITA do carro
 # e a pontilhada a esquerda. Se a visao reportar continua na ESQUERDA, o
@@ -191,7 +205,11 @@ ZEBRA_COOLDOWN_POS_MANOBRA_S = 3.0
 # Mais cedo que isso NAO adianta mexer aqui: so enxergando a zebra de mais
 # longe (ZEBRA_TOP_FRAC menor), o que arrisca confundir fundo com zebra.
 # Quer voltar um pouco? 0.33.
-ZEBRA_PARADA_FRAC = 0.27
+#
+# 0.27 -> 0.20: agora que existe RE (secao 7), o objetivo e frear NA PRIMEIRA
+# vez em que a zebra aparece, qualquer que seja o degrau. Valor abaixo do
+# primeiro degrau (0.21) = "assim que enxergar".
+ZEBRA_PARADA_FRAC = 0.20
 
 APROXIMACAO_MAX_S = 2.5       # teto de tempo da aproximacao
 
@@ -222,7 +240,20 @@ PID_KD_URBANO = 0.20
 PID_D_SUAVIZACAO_URBANO = 0.55
 
 # Zona morta: mata o "hunting" do servo em cima de ruido de pixel.
-DEAD_ZONE_URBANO = 0.07
+# INTEGRAL (KI). Sem ele o controle e so proporcional (KP 0.24) e a posicao
+# do carro na pista FICA REFEN do "puxao" do servo reto: o log mostrava
+# `erro -0.35 | turn -0.08` por varios segundos (esterço minusculo segurando
+# um erro enorme) e o carro ficava colado na continua, nao importando o
+# viés. O integral soma esse erro ao longo do tempo e leva o carro ate o alvo
+# de verdade (o vies passa a significar o que diz). PID_I_LIMIT_URBANO limita
+# o quanto ele pode empurrar (0.5 x KI 0.20 = 0.10 de esterço ~ 4-5 graus).
+# Se o carro serpentear devagar (ondas longas), baixe KI pra 0.12.
+PID_KI_URBANO = 0.20
+PID_I_LIMIT_URBANO = 0.5
+
+# Zona morta 0.07 -> 0.04: com 0.07 (~4 cm) o integral nao fechava o ultimo
+# trecho ate o alvo (ele e zerado dentro da zona morta).
+DEAD_ZONE_URBANO = 0.04
 ERRO_SUAVIZACAO_URBANO = 0.45
 
 # =====================================================================
@@ -320,6 +351,28 @@ PARADA_TEMPO_S    = 5.0    # parado na faixa, em TODO cruzamento
 PARADA_TEMPO_EXTRA_MAX_S = 3.0
 PARADA_DEFINITIVA = True   # placa STOP = destino, encerra a missao
 
+# RE (marcha a re) NA PARADA: a zebra NAO pode ser pisada. Se mesmo freando
+# na 1a vista o carro passou da linha (ou esta com ela quase debaixo do
+# capo), ele da re ate a zebra voltar a aparecer a uma distancia segura, e
+# SO ENTAO comeca a contar a parada obrigatoria.
+# A re e feita em linha reta (servo centrado), na velocidade de piso.
+RE_ATIVA            = True
+VELOCIDADE_RE       = 0.17    # duty da re (piso do motor; nao use menos)
+# Quando recuar (frac_proximidade da zebra: 0 = longe, 1 = colada no capo):
+#   - zebra SUMIU depois de ter chegado a RE_PERDEU_FRAC (passou por baixo), ou
+#   - zebra visivel com frac >= RE_GATILHO_FRAC (quase debaixo do capo).
+RE_GATILHO_FRAC     = 0.60
+RE_PERDEU_FRAC      = 0.40
+# Onde parar de recuar: zebra visivel com frac <= RE_ALVO_FRAC.
+RE_ALVO_FRAC        = 0.45
+RE_MIN_S            = 0.30    # recua pelo menos isso (a deteccao pisca)
+RE_MAX_S            = 1.60    # teto de tempo por tentativa
+RE_TENTATIVAS_MAX   = 2
+# Depois da re o carro fica PARADO no minimo isso antes de andar de novo
+# (vale junto com PARADA_TEMPO_S: usa-se o MAIOR dos dois, contado a partir
+# do fim da re).
+RE_ESPERA_MIN_S     = 3.0
+
 # =====================================================================
 # 8. RUA BLOQUEADA (No Entry / Dead End)
 # As duas placas significam o mesmo: nao entra nessa rua -> desvia.
@@ -359,6 +412,8 @@ def aplicar_overrides():
     config.PID_KP = PID_KP_URBANO
     config.PID_KD = PID_KD_URBANO
     config.PID_D_SUAVIZACAO = PID_D_SUAVIZACAO_URBANO
+    config.PID_KI = PID_KI_URBANO
+    config.PID_I_LIMIT = PID_I_LIMIT_URBANO
     config.DEAD_ZONE = DEAD_ZONE_URBANO
     config.ERRO_SUAVIZACAO = ERRO_SUAVIZACAO_URBANO
     config.SERVO_DEADBAND_DEG = SERVO_DEADBAND_URBANO

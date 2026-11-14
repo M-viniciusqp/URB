@@ -180,8 +180,8 @@ muda esses tempos.
   carro anda menos do que a conta preve: reconfira as curvas.
 - **Mao direita**: `LADO_CONTINUO_FORCADO = "direita"` (a continua e sempre
   a da direita; a visao nao adivinha mais o lado) e
-  `LANE_BIAS_FRAC_URBANO = 0.70` (perto da pontilhada, pra nao derrubar a placa
-  que fica colada na continua;
+  `LANE_BIAS_FRAC_URBANO` (ver config; perto da pontilhada, pra nao derrubar a placa
+  que fica colada na continua; funciona junto com o integral `PID_KI_URBANO`;
   que e o correto pela lei de transito). Se aparecer "!! CONTINUA NA
   ESQUERDA" no log, o problema e o AVANCO/GIRO da curva, nao este numero.
 - **Zebra da saida**: depois da manobra a zebra e ignorada por
@@ -197,8 +197,7 @@ muda esses tempos.
   reto por padrao.
 - **Manobras**: tempos calibrados na pista (`MANOBRA_AVANCO_*`,
   `MANOBRA_CURVA_*`). Recalibre se mudar velocidade ou bateria.
-- **Parar mais cedo**: `ZEBRA_PARADA_FRAC = 0.27` (era 0.42; 0.27 e o minimo que a
-  deteccao atual permite) com a varredura
+- **Parar mais cedo**: `ZEBRA_PARADA_FRAC = 0.20` (era 0.42; 0.20 = freia assim que enxerga a zebra) com a varredura
   da zebra ampliada (`ZEBRA_TOP_FRAC = 0.15`, `ZEBRA_SCAN_ROWS = 14`). Para
   uns 34 px (3 degraus da varredura) antes. Voltar um pouco: `0.33`. Como
   a barra so cai em degraus, o valor tem que ficar logo abaixo de um deles
@@ -209,4 +208,12 @@ muda esses tempos.
   `0` no tempo desliga. O giro a direita ganha tempo extra automatico
   (`MANOBRA_ABERTURA_COMPENSA`) pro carro sair virado os mesmos 90 graus.
   Curva a esquerda e travessia nao mudam.
-
+- **RE na parada (nova)**: a zebra nao pode ser pisada. Depois de frear, se a
+  zebra esta quase debaixo do capo (`RE_GATILHO_FRAC`) ou sumiu depois de ter
+  sido vista de perto (`RE_PERDEU_FRAC`), o carro da re em linha reta
+  (`VELOCIDADE_RE`) ate a zebra voltar a `RE_ALVO_FRAC` (ou sumir longe, ou
+  `RE_MAX_S`), ate `RE_TENTATIVAS_MAX` vezes. So DEPOIS da re comeca a espera:
+  parado no minimo `max(PARADA_TEMPO_S, RE_ESPERA_MIN_S = 3 s)`. `RE_ATIVA =
+  False` desliga. Estado novo `RECUANDO`.
+- **Placa armando parado**: `SIGN_DIST_ACIONA_PARADO_M` (1.70 m) vale enquanto
+  o carro esta chegando/parado/recuando na zebra.

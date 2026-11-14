@@ -28,7 +28,7 @@ from controller import SteeringPID, speed_for
 from MotorModule import Motor
 from signs import SignTracker
 from crosswalk import CrosswalkDetector
-from navigator import Navigator
+from navigator import Navigator, APROXIMANDO, PARANDO, RECUANDO, PARADO
 
 DEBUG = "--debug" in sys.argv
 
@@ -112,6 +112,11 @@ def main():
             if not ok:
                 motor.stop()
                 continue
+
+            # parado na zebra a placa arma de mais longe (ver config_urbano)
+            placas.dist_aciona = (cfgu.SIGN_DIST_ACIONA_PARADO_M
+                                  if nav.estado in (APROXIMANDO, PARANDO, RECUANDO, PARADO)
+                                  else cfgu.SIGN_DIST_ACIONA_M)
 
             # ---------- 1. PLACAS (camera dedicada) -------------------
             # A leitura da camera de placas e SALTEADA (SIGN_SKIP_FRAMES):
