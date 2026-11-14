@@ -440,7 +440,7 @@ class Navigator:
 
         elif e == RECUANDO:
             cmd.usa_faixa = False
-            cmd.turn = 0.0                       # re em linha reta
+            cmd.turn = cfgu.RE_TURN              # re em linha reta (ver RE_TURN)
             cmd.speed = -cfgu.VELOCIDADE_RE
             if self._re_extra:
                 # re extra (curva a direita): so por tempo, a zebra ja nao importa

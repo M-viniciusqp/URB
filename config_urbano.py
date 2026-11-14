@@ -369,6 +369,12 @@ PARADA_DEFINITIVA = True   # placa STOP = destino, encerra a missao
 # SO ENTAO comeca a contar a parada obrigatoria.
 # A re e feita em linha reta (servo centrado), na velocidade de piso.
 RE_ATIVA            = True
+# Esterco DURANTE a re (-1 esquerda .. +1 direita). 0.0 = servo no centro.
+# Se o carro volta INCLINADO, e porque o centro do servo nao e exatamente
+# reto (o PID segura ~-0.15 pra andar reto, veja `turn` no log) e na re o
+# erro aparece. Voltou torto pra DIREITA (traseira foi pra esquerda)? Ponha
+# um valor NEGATIVO (ex: -0.10). Voltou torto pra ESQUERDA? POSITIVO (+0.10).
+RE_TURN             = 0.0
 VELOCIDADE_RE       = 0.17    # duty da re (piso do motor; nao use menos)
 # Quando recuar (frac_proximidade da zebra: 0 = longe, 1 = colada no capo):
 #   - zebra SUMIU depois de ter chegado a RE_PERDEU_FRAC (passou por baixo), ou
