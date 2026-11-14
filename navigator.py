@@ -110,6 +110,8 @@ class Navigator:
         self._zebra_sem = 0         # frames SEGUIDOS sem enxergar barra nenhuma
         self._re_n = 0              # re's ja feitas neste cruzamento
         self._re_viu = False        # a zebra foi vista durante a re atual
+        self._re_extra = False      # re atual e a EXTRA (so por tempo)
+        self._re_extra_feito = False
         self._frac_hist = deque(maxlen=10)  # ultimos frac (carro parou de deslizar?)
 
         self._bloqueio_ate = 0.0
@@ -227,6 +229,8 @@ class Navigator:
         self._pos_parada_confirmada = self.intencao is not None
         self._zebra_max = 0.0
         self._re_n = 0
+        self._re_extra = False
+        self._re_extra_feito = False
         self.intencao = None
         self._registrar(f"faixa de pedestre a frente -> parando "
                         f"(depois: {tipo})")
@@ -408,7 +412,8 @@ class Navigator:
                     self._re_viu = False
                     self._muda(RECUANDO)
                 elif decisao is False:
-                    self._registrar(f"PARADO antes da faixa ({self._espera_parado():.0f}s)")
+                    if not self._re_extra_feito:
+                        self._registrar(f"PARADO antes da faixa ({self._espera_parado():.0f}s)")
                     self._muda(PARADO)
                 # None = a zebra piscou agora; espera mais um frame pra decidir
 
@@ -416,6 +421,14 @@ class Navigator:
             cmd.usa_faixa = False
             cmd.turn = 0.0                       # re em linha reta
             cmd.speed = -cfgu.VELOCIDADE_RE
+            if self._re_extra:
+                # re extra (curva a direita): so por tempo, a zebra ja nao importa
+                if dt >= cfgu.RE_EXTRA_DIR_S:
+                    self._registrar("re extra concluida")
+                    self._re_extra = False
+                    self._zebra_max = 0.0
+                    self._muda(PARANDO)
+                return
             if self._zebra_frac > 0.0:
                 self._re_viu = True
             visivel_ok = (self._zebra_frac > 0.0
@@ -448,6 +461,15 @@ class Navigator:
             if dt >= espera and (self._pos_parada_confirmada or tempo_esgotado):
                 if not self._pos_parada_confirmada:
                     self._registrar("placa nao confirmada a tempo -- seguindo reto por padrao")
+                if (self.pos_parada == "direita" and cfgu.RE_ATIVA
+                        and cfgu.RE_EXTRA_DIR_S > 0 and not self._re_extra_feito):
+                    # curva a direita: recua mais antes de sair (ver config)
+                    self._re_extra_feito = True
+                    self._re_extra = True
+                    self._pos_parada_confirmada = True
+                    self._registrar(f"curva a direita: re extra de {cfgu.RE_EXTRA_DIR_S:.1f}s")
+                    self._muda(RECUANDO)
+                    return
                 cmd.resetar_pid = True
                 self.frames_reengate = 0
                 self._executar_pos_parada()
@@ -469,6 +491,8 @@ class Navigator:
     def _espera_parado(self):
         """Tempo minimo parado. Depois de uma RE, nunca menos que
         RE_ESPERA_MIN_S (contado a partir de o carro parar de vez)."""
+        if self._re_extra_feito:
+            return cfgu.RE_ESPERA_MIN_S        # ja esperou a parada toda antes da re extra
         if self._re_n > 0:
             return max(cfgu.PARADA_TEMPO_S, cfgu.RE_ESPERA_MIN_S)
         return cfgu.PARADA_TEMPO_S

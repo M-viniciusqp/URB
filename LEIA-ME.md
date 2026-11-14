@@ -217,3 +217,9 @@ muda esses tempos.
   False` desliga. Estado novo `RECUANDO`.
 - **Placa armando parado**: `SIGN_DIST_ACIONA_PARADO_M` (1.70 m) vale enquanto
   o carro esta chegando/parado/recuando na zebra.
+- **Curva a direita sem cair na contramao**: sem avanco reto
+  (`MANOBRA_AVANCO_DIR_S = 0`): sai ja com o servo pra esquerda (`ABRINDO`) e
+  faz o balao pra direita. Alem disso, depois da espera ele da uma RE EXTRA
+  (`RE_EXTRA_DIR_S`, 0.9 s) pra largar de mais atras e espera mais
+  `RE_ESPERA_MIN_S` (3 s) antes de sair. Terminou na faixa contraria: suba
+  `RE_EXTRA_DIR_S`; colado na borda/placa da direita: baixe.

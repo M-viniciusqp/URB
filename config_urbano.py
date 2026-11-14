@@ -294,7 +294,11 @@ VELOCIDADE_MANOBRA_REF = 0.24
 
 # AVANCO da direita baixado: andar reto demais antes de virar faz o carro
 # passar do canto e curvar tarde, pousando na faixa de LONGE (errada).
-MANOBRA_AVANCO_DIR_S = 0.25
+# 0.25 -> 0.0: curva a DIREITA sem avanco reto. Com o avanco o carro entrava
+# demais no cruzamento e terminava na faixa CONTRARIA (continua a esquerda).
+# Agora, depois da re, ele ja sai com o servo pra esquerda (ABRINDO) e
+# faz o balao pra direita. Quer um pouco de reta de volta? 0.15.
+MANOBRA_AVANCO_DIR_S = 0.0
 MANOBRA_AVANCO_ESQ_S = 0.45
 
 # GIRO: quanto tempo o servo FICA no angulo de MANOBRA_TURN_MAG antes de
@@ -377,6 +381,14 @@ RE_TENTATIVAS_MAX   = 2
 # (vale junto com PARADA_TEMPO_S: usa-se o MAIOR dos dois, contado a partir
 # do fim da re).
 RE_ESPERA_MIN_S     = 3.0
+# RE EXTRA so pra curva a DIREITA: depois da espera obrigatoria, recua mais
+# isso (em s, na VELOCIDADE_RE) pra largar de mais atras, e espera
+# RE_ESPERA_MIN_S de novo antes de sair. Motivo: sem avanco reto o carro faz
+# o balao a partir do ponto onde parou; quanto mais atras ele parte, mais
+# cedo termina a curva e mais perto da faixa DIREITA da rua nova ele cai.
+# Terminou na faixa contraria (muito longe)? suba (1.2). Terminou colado na
+# borda/placa da direita (curto demais)? baixe (0.6). 0 desliga.
+RE_EXTRA_DIR_S      = 0.9
 
 # =====================================================================
 # 8. RUA BLOQUEADA (No Entry / Dead End)
