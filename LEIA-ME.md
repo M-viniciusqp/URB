@@ -229,3 +229,9 @@ muda esses tempos.
   `ZEBRA_NOVA_MIN_S` (2 s) do fim da manobra, houve `ZEBRA_NOVA_LIVRE_FRAMES`
   (15) frames sem zebra e ela apareceu longe (`ZEBRA_NOVA_FRAC_MAX`). Parou de
   novo na zebra de saida: suba `ZEBRA_NOVA_MIN_S`. Ainda passa direto: baixe.
+- **Curva a esquerda**: da uma re curta (`RE_ESQ_S`, 0.6 s, reta) MESMO parado
+  antes da faixa, pra largar de mais atras (so esquerda; a direita so recua se
+  passar da faixa). Se a placa so e lida depois da espera, recua nessa hora e
+  espera `RE_ESPERA_MIN_S` (3 s) de novo. Alem disso, o avanco da esquerda e a
+  travessia em frente usam `MANOBRA_TURN_RETA` (-0.12): o centro do servo nao e
+  reto e o carro entortava pra direita (pro lado da placa).

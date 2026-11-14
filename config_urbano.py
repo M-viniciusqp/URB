@@ -365,6 +365,12 @@ MANOBRA_CURVA_DIR_EXTRA_S = 0.20
 MANOBRA_CURVA_DIR_EFETIVA_S += MANOBRA_CURVA_DIR_EXTRA_S * (
     _k if MANOBRA_AUTOESCALA and VELOCIDADE_MANOBRA > 0 else 1.0)
 
+# ESTERCO DAS RETAS DA MANOBRA (avanco da ESQUERDA e travessia em frente). O
+# centro do servo nao e reto: sem isso o carro anda torto pra DIREITA (pro lado
+# da placa) nesses trechos. -0.12 = um pouco pra esquerda. Ainda entorta pra
+# direita? mais negativo (-0.18). Entortou pra esquerda? menos (-0.06). 0 desliga.
+MANOBRA_TURN_RETA = -0.12
+
 MANOBRA_REENGATE_FRAMES = 25  # frames sem faixa tolerados no reengate
 
 # =====================================================================
@@ -393,6 +399,11 @@ RE_ATIVA            = True
 # Teste isolado:  python3 test_re.py [RE_TURN] [RE_BALANCO_B] [segundos]
 RE_TURN             = -0.10   # medido na pista com test_re.py: voltou reto
 RE_BALANCO_B        = 1.0
+# RE CURTA na curva a ESQUERDA: mesmo parado ANTES da faixa (sem passar dela)
+# ele da essa re (s, em linha reta) pra largar de mais atras. So esquerda; a
+# direita so recua quando passa da faixa. Se a placa so for lida depois da
+# espera, recua nessa hora e espera RE_ESPERA_MIN_S (3 s) de novo. 0 desliga.
+RE_ESQ_S            = 0.6
 VELOCIDADE_RE       = 0.17    # duty da re (piso do motor; nao use menos)
 # Quando recuar (frac_proximidade da zebra: 0 = longe, 1 = colada no capo):
 #   - zebra SUMIU depois de ter chegado a RE_PERDEU_FRAC (passou por baixo), ou

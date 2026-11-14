@@ -111,6 +111,9 @@ class Navigator:
         self._zebra_max = 0.0       # maior frac visto desde que a zebra foi avistada
         self._zebra_sem = 0         # frames SEGUIDOS sem enxergar barra nenhuma
         self._re_n = 0              # re's ja feitas neste cruzamento
+        self._re_timed = False      # re atual e a curta da esquerda (so por tempo)
+        self._re_esq_feita = False
+        self._re_esq_tarde = False
         self._re_t_seguro = None    # instante (na re) em que chegou no ponto seguro
         self._re_arco_s = 0.0       # tempo recuando com o volante esterçado (p/ compensar a curva)
         self._re_viu = False        # a zebra foi vista durante a re atual
@@ -231,6 +234,9 @@ class Navigator:
         self._pos_parada_confirmada = self.intencao is not None
         self._zebra_max = 0.0
         self._re_n = 0
+        self._re_timed = False
+        self._re_esq_feita = False
+        self._re_esq_tarde = False
         self._re_arco_s = 0.0
         self.intencao = None
         self._registrar(f"faixa de pedestre a frente -> parando "
@@ -371,6 +377,10 @@ class Navigator:
         elif e == AVANCANDO:
             cmd.usa_faixa = False
             cmd.speed = cfgu.VELOCIDADE_MANOBRA
+            if not (self.pos_curva == CURVANDO and self.sentido > 0):
+                # avanco da ESQUERDA / travessia: servo no centro NAO e reto
+                # (o carro tende a ir pra direita, na direcao da placa)
+                cmd.turn = cfgu.MANOBRA_TURN_RETA
             if self.pos_curva == CURVANDO:
                 limite = (cfgu.MANOBRA_AVANCO_DIR_S if self.sentido > 0
                           else cfgu.MANOBRA_AVANCO_ESQ_S)
@@ -412,6 +422,7 @@ class Navigator:
         elif e == TRAVESSANDO:
             cmd.usa_faixa = False
             cmd.speed = cfgu.VELOCIDADE_MANOBRA
+            cmd.turn = cfgu.MANOBRA_TURN_RETA
             if dt >= cfgu.MANOBRA_TRAVESSIA_S:
                 self.frames_reengate = 0
                 cmd.resetar_pid = True
@@ -438,8 +449,18 @@ class Navigator:
                     self._re_t_seguro = None
                     self._muda(RECUANDO)
                 elif decisao is False:
-                    self._registrar(f"PARADO antes da faixa ({self._espera_parado():.0f}s)")
-                    self._muda(PARADO)
+                    if (self.pos_parada == "esquerda" and cfgu.RE_ATIVA
+                            and cfgu.RE_ESQ_S > 0 and not self._re_esq_feita
+                            and self._re_n == 0):
+                        # curva a esquerda: um pouquinho de re mesmo parado
+                        # antes da faixa (parte de mais atras, arco maior)
+                        self._re_esq_feita = True
+                        self._re_timed = True
+                        self._registrar(f"curva a esquerda: re curta de {cfgu.RE_ESQ_S:.1f}s")
+                        self._muda(RECUANDO)
+                    else:
+                        self._registrar(f"PARADO antes da faixa ({self._espera_parado():.0f}s)")
+                        self._muda(PARADO)
                 # None = a zebra piscou agora; espera mais um frame pra decidir
 
         elif e == RECUANDO:
@@ -447,6 +468,14 @@ class Navigator:
             arco = self._turn_arco_re()
             cmd.turn = max(-1.0, min(1.0, arco + cfgu.RE_TURN))
             cmd.speed = -cfgu.VELOCIDADE_RE
+            if self._re_timed:
+                # re curta da curva a esquerda: so por tempo
+                if dt >= cfgu.RE_ESQ_S:
+                    self._registrar("re concluida (por tempo)")
+                    self._re_timed = False
+                    self._zebra_max = 0.0
+                    self._muda(PARANDO)
+                return
             if self._zebra_frac > 0.0:
                 self._re_viu = True
             visivel_ok = (self._zebra_frac > 0.0
@@ -485,6 +514,18 @@ class Navigator:
             if dt >= espera and (self._pos_parada_confirmada or tempo_esgotado):
                 if not self._pos_parada_confirmada:
                     self._registrar("placa nao confirmada a tempo -- seguindo reto por padrao")
+                if (self.pos_parada == "esquerda" and cfgu.RE_ATIVA
+                        and cfgu.RE_ESQ_S > 0 and not self._re_esq_feita
+                        and self._re_n == 0):
+                    # placa lida SO depois da espera e sem nenhuma re ainda:
+                    # re curta (uma vez) e espera RE_ESPERA_MIN_S antes de sair
+                    self._re_esq_feita = True
+                    self._re_esq_tarde = True
+                    self._re_timed = True
+                    self._pos_parada_confirmada = True
+                    self._registrar(f"curva a esquerda: re curta de {cfgu.RE_ESQ_S:.1f}s")
+                    self._muda(RECUANDO)
+                    return
                 cmd.resetar_pid = True
                 self.frames_reengate = 0
                 self._executar_pos_parada()
@@ -525,7 +566,9 @@ class Navigator:
     def _espera_parado(self):
         """Tempo minimo parado. Depois de uma RE, nunca menos que
         RE_ESPERA_MIN_S (contado a partir de o carro parar de vez)."""
-        if self._re_n > 0:
+        if self._re_esq_tarde:
+            return cfgu.RE_ESPERA_MIN_S        # ja esperou a parada toda antes dessa re
+        if self._re_n > 0 or self._re_esq_feita:
             return max(cfgu.PARADA_TEMPO_S, cfgu.RE_ESPERA_MIN_S)
         return cfgu.PARADA_TEMPO_S
 
