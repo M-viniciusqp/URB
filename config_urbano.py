@@ -342,7 +342,9 @@ MANOBRA_TURN_MAG_ESQ = 0.80   # menos esterco = raio maior = arco aberto
 # a direita (o balao estava curto e o carro batia na placa). A compensacao
 # abaixo ja soma o tempo extra no giro a direita. Ainda raspa na placa? 0.55.
 # Invadiu a pontilhada/contramao? volte pra 0.40.
-MANOBRA_ABERTURA_DIR_S    = 0.45
+# 0.45 -> 0.60: de novo mais TEMPO virado pra esquerda (o angulo, ABERTURA_TURN_DIR,
+# nao muda). Ainda curto? 0.75. Invadiu a pontilhada/contramao? 0.50.
+MANOBRA_ABERTURA_DIR_S    = 0.60
 MANOBRA_ABERTURA_TURN_DIR = 0.60
 # O desvio pra esquerda "gasta" parte do giro: sem compensar, o carro sai da
 # curva virado menos de 90 graus. Com True, o giro a direita ganha o tempo
