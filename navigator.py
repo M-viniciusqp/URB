@@ -102,6 +102,8 @@ class Navigator:
         self.intencao = None        # 'direita' | 'esquerda' | 'frente' | 'parar'
         self.intencao_t = 0.0
         self.intencao_origem = ""
+        self.intencao_id = None     # ID (ArUco) da placa que armou a intencao
+        self._placa_n = 0           # leituras SEGUIDAS da placa armada, ja perto
 
         self._zebra_anterior = False
         self._zebra_frac = 0.0
@@ -169,7 +171,7 @@ class Navigator:
         self._registrar("TUNEL: saindo (visao normal)")
 
     # ------------------------------------------------------------------
-    def _armar(self, tipo, origem):
+    def _armar(self, tipo, origem, id_=None):
         # Se o carro JA esta chegando na faixa ou parado nela, a decisao do
         # que fazer depois da parada ainda nao foi executada -- entao a
         # placa que acabou de ser lida corrige essa decisao em vez de
@@ -185,6 +187,8 @@ class Navigator:
         self.intencao = tipo
         self.intencao_t = time.time()
         self.intencao_origem = origem
+        self.intencao_id = id_
+        self._placa_n = 0
         self._registrar(f"intencao ARMADA: {tipo} (placa: {origem}) "
                         f"-- aguardando a faixa de pedestre")
 
@@ -203,7 +207,7 @@ class Navigator:
             return
 
         if tipo in ("direita", "esquerda", "frente", "parar"):
-            self._armar(tipo, tipo)
+            self._armar(tipo, tipo, ev.id)
             return
 
         if tipo in ("proibido_entrar", "sem_saida"):
@@ -218,18 +222,33 @@ class Navigator:
 
             idx = self._bloqueio_tentativas % len(cfgu.BLOQUEIO_PREFERENCIA)
             escolha = cfgu.BLOQUEIO_PREFERENCIA[idx]
-            self._armar(escolha, f"{tipo} -> desvio pela {escolha}")
+            self._armar(escolha, f"{tipo} -> desvio pela {escolha}", ev.id)
             return
 
         self._registrar(f"placa desconhecida ignorada: {tipo}")
 
     # ------------------------------------------------------------------
+    def set_placa_dist(self, dist):
+        """main informa, a cada leitura da camera de placas, a distancia da
+        placa que ARMOU a intencao (None = nao apareceu neste frame)."""
+        if dist is None:
+            return                      # nao apareceu neste frame: nao muda nada
+        if dist <= cfgu.SIGN_PARADA_DIST_M:
+            self._placa_n += 1
+        else:
+            self._placa_n = 0
+
+    def pausa_placas(self):
+        """Durante a manobra a placa nao e aceita: o tracker nao emite."""
+        return self.estado in _EXECUTANDO
+
     def _disparar(self, tipo):
         """Zebra avistada: SEMPRE para antes dela. A manobra so acontece
         depois dos 3 segundos parado -- e a regra de transito, nao uma
         opcao: faixa de pedestre e parada obrigatoria, tenha placa ou nao.
         """
         self._zebra_bloqueio_ate = time.time() + cfgu.ZEBRA_COOLDOWN_S
+        self._placa_n = 0
         self.pos_parada = tipo
         self._pos_parada_confirmada = self.intencao is not None
         self._zebra_max = 0.0
@@ -320,6 +339,19 @@ class Navigator:
                             "pos-manobra) -- vou parar")
             zebra_nova = True
 
+        # PARAR PELA PLACA: se a placa armada chegou perto e a zebra NAO foi
+        # detectada (camera da faixa nao viu, bloqueio, ...), para mesmo assim.
+        # E a rede de seguranca: a zebra normalmente dispara ANTES.
+        por_placa = False
+        if (not zebra_nova and self.intencao
+                and self._placa_n >= cfgu.SIGN_PARADA_FRAMES
+                and self.estado in (SEGUINDO, REENGATANDO)):
+            self._registrar(f"placa '{self.intencao}' a menos de "
+                            f"{cfgu.SIGN_PARADA_DIST_M:.2f} m e a faixa nao foi "
+                            f"vista -- parando pela placa")
+            zebra_nova = True
+            por_placa = True
+
         if zebra_presente or zebra_frac > 0.0:
             self._zebra_livre = 0
         else:
@@ -332,6 +364,9 @@ class Navigator:
             # Melhor uma travessia reta controlada do que deixar o PID
             # esterçar em cima das barras da zebra.
             self._disparar(self.intencao or "frente")
+            if por_placa:
+                # sem zebra pra "rolar ate": a placa ja esta perto, freia JA
+                self._muda(PARANDO)
 
         # roda o passo de estado; se a transicao acontecer NESTE frame,
         # roda de novo pra ja emitir o comando do estado novo (senao o

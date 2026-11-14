@@ -165,6 +165,10 @@ class SignTracker:
         self.visivel = []         # ultimas leituras validas (pra HUD)
         self.desconhecidos = {}   # id -> frames, pra IDs fora do mapa PLACAS
         self._avisados = set()
+        # main liga isso durante a MANOBRA (o navegador recusa placa nessa
+        # hora): a leitura continua e os votos acumulam, mas o evento NAO e
+        # emitido -- senao a placa era "gasta" (cooldown de 6 s) sem ser obedecida.
+        self.pausado = False
         self._diag_t = {}         # id -> ultimo aviso de diagnostico (throttle)
         self.cruas = []           # leituras cruas do ultimo frame (antes dos filtros)
 
@@ -244,7 +248,8 @@ class SignTracker:
             perto = self._ultima_dist.get(id_, 99.0) <= cfgu.SIGN_DIST_ACIONA_M * 2.2
             if confirmada and perto:
                 self._sumido[id_] = self._sumido.get(id_, 0) + 1
-                if self._sumido[id_] >= cfgu.SIGN_SUMIU_ACIONA_FRAMES:
+                if (self._sumido[id_] >= cfgu.SIGN_SUMIU_ACIONA_FRAMES
+                        and not self.pausado):
                     ev = Evento(cfgu.PLACAS[id_], id_, self._ultima_dist.get(id_, 0.0))
                     self.registrar_execucao(id_)
                     return ev
@@ -271,7 +276,7 @@ class SignTracker:
             self._sumido.pop(l.id, None)
 
             if (self._votos[l.id] >= cfgu.SIGN_CONFIRMA_FRAMES
-                    and l.dist <= self.dist_aciona):
+                    and l.dist <= self.dist_aciona and not self.pausado):
                 ev = Evento(l.tipo, l.id, l.dist)
                 self.registrar_execucao(l.id)
                 return ev

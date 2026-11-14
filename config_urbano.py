@@ -66,6 +66,15 @@ SIGN_DIST_ACIONA_M = 1.20
 # abaixo de SIGN_DIST_MAX_M pra evitar placa de outra rua.
 SIGN_DIST_ACIONA_PARADO_M = 2.40
 
+# PARAR PELA PLACA (rede de seguranca da zebra): se a placa que armou a
+# intencao chegar a esta distancia (m, estimada) por SIGN_PARADA_FRAMES leituras
+# seguidas e a zebra ainda nao foi detectada, o carro PARA do mesmo jeito.
+# A zebra normalmente dispara antes (placa a ~0.5-0.7 m); este valor so pega
+# quando ela falha. Parando CEDO demais pela placa? baixe (0.40). Passando da
+# zebra sem parar? suba (0.65).
+SIGN_PARADA_DIST_M = 0.50
+SIGN_PARADA_FRAMES = 2
+
 INTENCAO_VALIDA_S = 8.0      # intencao armada expira sem cruzamento
 SIGN_SUMIU_ACIONA_FRAMES = 4 # arma tambem se o marcador sumir ja perto
 SIGN_COOLDOWN_S = 6.0        # ignora o MESMO ID depois de obedecido

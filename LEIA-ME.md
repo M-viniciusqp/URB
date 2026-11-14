@@ -235,3 +235,10 @@ muda esses tempos.
   espera `RE_ESPERA_MIN_S` (3 s) de novo. Alem disso, o avanco da esquerda e a
   travessia em frente usam `MANOBRA_TURN_RETA` (-0.12): o centro do servo nao e
   reto e o carro entortava pra direita (pro lado da placa).
+- **Parar pela placa**: rede de seguranca da zebra. Se a placa que armou a
+  intencao chegar a `SIGN_PARADA_DIST_M` (0.50 m) por `SIGN_PARADA_FRAMES`
+  leituras seguidas e a zebra NAO foi detectada, o carro freia na hora do mesmo
+  jeito (a zebra normalmente dispara antes). Parando cedo demais: baixe;
+  passando da zebra: suba. A leitura de placas roda o tempo todo; durante a
+  manobra ela continua lendo, mas so emite a placa quando a manobra acaba
+  (antes a placa era "gasta" pelo cooldown de 6 s sem ser obedecida).

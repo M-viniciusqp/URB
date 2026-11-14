@@ -65,6 +65,17 @@ def abrir_camera(indice, res, nome):
     return cap
 
 
+def _dist_placa_armada(nav, placas):
+    """Distancia da placa que ARMOU a intencao, lida AGORA (cruas = antes do
+    cooldown: a placa ja foi 'obedecida' e o cooldown a esconde de visivel).
+    Alimenta o 'parar pela placa' do navegador (rede de seguranca da zebra)."""
+    if nav.intencao_id is None or not nav.intencao:
+        nav.set_placa_dist(None)
+        return
+    ds = [l.dist for l in placas.cruas if l.id == nav.intencao_id]
+    nav.set_placa_dist(min(ds) if ds else None)
+
+
 def main():
     cfgu.aplicar_overrides()
     print("PILOTO URBANO -- seguindo faixa e obedecendo sinalizacao.\n")
@@ -117,6 +128,9 @@ def main():
             placas.dist_aciona = (cfgu.SIGN_DIST_ACIONA_PARADO_M
                                   if nav.estado in (APROXIMANDO, PARANDO, RECUANDO, PARADO)
                                   else cfgu.SIGN_DIST_ACIONA_M)
+            # na manobra a placa nao e aceita: le, mas o tracker nao emite
+            # (senao a placa era "gasta" pelo cooldown sem ser obedecida)
+            placas.pausado = nav.pausa_placas()
 
             # ---------- 1. PLACAS (camera dedicada) -------------------
             # A leitura da camera de placas e SALTEADA (SIGN_SKIP_FRAMES):
@@ -129,10 +143,12 @@ def main():
                     if ok_p:
                         evento = placas.update(frame_placas)
                         nav.on_evento(evento)
+                        _dist_placa_armada(nav, placas)
                         ultimo_frame_placas = frame_placas
             else:
                 evento = placas.update(frame_full)
                 nav.on_evento(evento)
+                _dist_placa_armada(nav, placas)
             frame_n += 1
             t2 = time.time()
 
