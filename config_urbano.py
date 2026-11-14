@@ -346,6 +346,15 @@ if MANOBRA_ABERTURA_COMPENSA and MANOBRA_ABERTURA_DIR_S > 0:
 else:
     MANOBRA_CURVA_DIR_EFETIVA_S = MANOBRA_CURVA_DIR_S
 
+# GIRO EXTRA A DIREITA no fim da curva: o servo continua virado pra direita
+# mais um tempinho depois de fechar a curva, pro carro terminar DENTRO da
+# faixa direita da rua nova. Tempo na velocidade de REFERENCIA (reescala
+# sozinho). Ainda termina pra fora (esquerda)? suba (0.30). Passou pra
+# direita demais, colado na borda? baixe (0.10). 0 desliga.
+MANOBRA_CURVA_DIR_EXTRA_S = 0.20
+MANOBRA_CURVA_DIR_EFETIVA_S += MANOBRA_CURVA_DIR_EXTRA_S * (
+    _k if MANOBRA_AUTOESCALA and VELOCIDADE_MANOBRA > 0 else 1.0)
+
 MANOBRA_REENGATE_FRAMES = 25  # frames sem faixa tolerados no reengate
 
 # =====================================================================
