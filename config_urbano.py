@@ -417,6 +417,9 @@ RE_BALANCO_B        = 1.0
 # direita so recua quando passa da faixa. Se a placa so for lida depois da
 # espera, recua nessa hora e espera RE_ESPERA_MIN_S (3 s) de novo. 0 desliga.
 RE_ESQ_S            = 0.6
+# Idem pra curva a DIREITA (parado antes da faixa, sem ter passado dela).
+# Se passou da faixa, a re normal ja acontece e esta nao se soma (uma re so).
+RE_DIR_S            = 0.6
 VELOCIDADE_RE       = 0.17    # duty da re (piso do motor; nao use menos)
 # Quando recuar (frac_proximidade da zebra: 0 = longe, 1 = colada no capo):
 #   - zebra SUMIU depois de ter chegado a RE_PERDEU_FRAC (passou por baixo), ou

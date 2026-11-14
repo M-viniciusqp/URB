@@ -242,3 +242,6 @@ muda esses tempos.
   passando da zebra: suba. A leitura de placas roda o tempo todo; durante a
   manobra ela continua lendo, mas so emite a placa quando a manobra acaba
   (antes a placa era "gasta" pelo cooldown de 6 s sem ser obedecida).
+- **Re curta tambem na direita**: `RE_DIR_S` (0.6 s), igual a `RE_ESQ_S`. Parado
+  antes da faixa, ele recua esse tempo antes da espera; se passou da faixa, so
+  a re normal acontece (uma re so). Frente: sem re.

@@ -113,7 +113,8 @@ class Navigator:
         self._zebra_max = 0.0       # maior frac visto desde que a zebra foi avistada
         self._zebra_sem = 0         # frames SEGUIDOS sem enxergar barra nenhuma
         self._re_n = 0              # re's ja feitas neste cruzamento
-        self._re_timed = False      # re atual e a curta da esquerda (so por tempo)
+        self._re_timed = False      # re atual e a curta da curva (so por tempo)
+        self._re_timed_s = 0.0
         self._re_esq_feita = False
         self._re_esq_tarde = False
         self._re_t_seguro = None    # instante (na re) em que chegou no ponto seguro
@@ -484,14 +485,15 @@ class Navigator:
                     self._re_t_seguro = None
                     self._muda(RECUANDO)
                 elif decisao is False:
-                    if (self.pos_parada == "esquerda" and cfgu.RE_ATIVA
-                            and cfgu.RE_ESQ_S > 0 and not self._re_esq_feita
-                            and self._re_n == 0):
-                        # curva a esquerda: um pouquinho de re mesmo parado
-                        # antes da faixa (parte de mais atras, arco maior)
+                    if (cfgu.RE_ATIVA and self._re_curta_s() > 0
+                            and not self._re_esq_feita and self._re_n == 0):
+                        # curva (esquerda/direita): um pouquinho de re mesmo
+                        # parado antes da faixa (parte de mais atras)
                         self._re_esq_feita = True
                         self._re_timed = True
-                        self._registrar(f"curva a esquerda: re curta de {cfgu.RE_ESQ_S:.1f}s")
+                        self._re_timed_s = self._re_curta_s()
+                        self._registrar(f"curva a {self.pos_parada}: re curta de "
+                                        f"{self._re_timed_s:.1f}s")
                         self._muda(RECUANDO)
                     else:
                         self._registrar(f"PARADO antes da faixa ({self._espera_parado():.0f}s)")
@@ -504,8 +506,8 @@ class Navigator:
             cmd.turn = max(-1.0, min(1.0, arco + cfgu.RE_TURN))
             cmd.speed = -cfgu.VELOCIDADE_RE
             if self._re_timed:
-                # re curta da curva a esquerda: so por tempo
-                if dt >= cfgu.RE_ESQ_S:
+                # re curta da curva: so por tempo
+                if dt >= self._re_timed_s:
                     self._registrar("re concluida (por tempo)")
                     self._re_timed = False
                     self._zebra_max = 0.0
@@ -549,16 +551,17 @@ class Navigator:
             if dt >= espera and (self._pos_parada_confirmada or tempo_esgotado):
                 if not self._pos_parada_confirmada:
                     self._registrar("placa nao confirmada a tempo -- seguindo reto por padrao")
-                if (self.pos_parada == "esquerda" and cfgu.RE_ATIVA
-                        and cfgu.RE_ESQ_S > 0 and not self._re_esq_feita
-                        and self._re_n == 0):
+                if (cfgu.RE_ATIVA and self._re_curta_s() > 0
+                        and not self._re_esq_feita and self._re_n == 0):
                     # placa lida SO depois da espera e sem nenhuma re ainda:
                     # re curta (uma vez) e espera RE_ESPERA_MIN_S antes de sair
                     self._re_esq_feita = True
                     self._re_esq_tarde = True
                     self._re_timed = True
+                    self._re_timed_s = self._re_curta_s()
                     self._pos_parada_confirmada = True
-                    self._registrar(f"curva a esquerda: re curta de {cfgu.RE_ESQ_S:.1f}s")
+                    self._registrar(f"curva a {self.pos_parada}: re curta de "
+                                    f"{self._re_timed_s:.1f}s")
                     self._muda(RECUANDO)
                     return
                 cmd.resetar_pid = True
@@ -597,6 +600,14 @@ class Navigator:
             return 0.0
         comp = (cfgu.RE_ARCO_TURN / mag_curva) * self._re_arco_s
         return -comp if cfgu.RE_ARCO_INVERTE else comp   # invertido: gira pro lado errado
+
+    def _re_curta_s(self):
+        """Duracao da re curta (so por tempo) da curva decidida; 0 = sem re."""
+        if self.pos_parada == "esquerda":
+            return cfgu.RE_ESQ_S
+        if self.pos_parada == "direita":
+            return cfgu.RE_DIR_S
+        return 0.0
 
     def _espera_parado(self):
         """Tempo minimo parado. Depois de uma RE, nunca menos que
