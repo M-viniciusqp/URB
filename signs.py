@@ -52,48 +52,29 @@ class SignDetector:
 
         # OpenCV >= 4.7 mudou a API do aruco. Suporta as duas porque o Pi
         # costuma vir com a versao do repositorio, que e mais velha.
-        # Dois conjuntos de parametros:
-        #   RAPIDO     : o padrao do OpenCV (~7 ms), pra quando a imagem e boa.
-        #   TOLERANTE  : aceita marcador borrado (movimento/vibracao) e com
-        #                borda deformada. Na bancada de teste (marcador sintetico
-        #                com borrao de 9 px) o padrao achava 8 de 40; o
-        #                tolerante 40 de 40, sem nenhum ID trocado. Custa ~3x,
-        #                entao so roda quando o rapido nao achou nada.
-        def _tolerante(p):
-            p.polygonalApproxAccuracyRate = 0.05
-            p.maxErroneousBitsInBorderRate = 0.5
-            return p
-
         if hasattr(cv2.aruco, "ArucoDetector"):
             dicionario = cv2.aruco.getPredefinedDictionary(dic_id)
-            self._detector = cv2.aruco.ArucoDetector(
-                dicionario, cv2.aruco.DetectorParameters())
-            self._detector_tol = cv2.aruco.ArucoDetector(
-                dicionario, _tolerante(cv2.aruco.DetectorParameters()))
+            params = cv2.aruco.DetectorParameters()
+            self._detector = cv2.aruco.ArucoDetector(dicionario, params)
             self._api_nova = True
         else:
             self._dicionario = cv2.aruco.Dictionary_get(dic_id)
             self._params = cv2.aruco.DetectorParameters_create()
-            self._params_tol = _tolerante(cv2.aruco.DetectorParameters_create())
             self._api_nova = False
 
         self.ultimo_corners = []
         self.ultimo_ids = []
 
     # ------------------------------------------------------------------
-    def _detect_raw(self, gray, tolerante=False):
+    def _detect_raw(self, gray):
         if self._api_nova:
-            det = self._detector_tol if tolerante else self._detector
-            corners, ids, _ = det.detectMarkers(gray)
+            corners, ids, _ = self._detector.detectMarkers(gray)
         else:
-            params = self._params_tol if tolerante else self._params
             corners, ids, _ = cv2.aruco.detectMarkers(
-                gray, self._dicionario, parameters=params)
+                gray, self._dicionario, parameters=self._params)
         return corners, ids
 
-    def detect(self, frame, insistir=False):
-        """insistir=True: se a deteccao rapida nao achar nada, tenta de novo
-        com os parametros tolerantes (mais lento, acha marcador borrado)."""
+    def detect(self, frame):
         """Devolve lista de Leitura, da MAIS PROXIMA pra mais distante."""
         h = frame.shape[0]
         y_lim = int(h * cfgu.SIGN_ROI_TOP_FRAC)
@@ -101,8 +82,6 @@ class SignDetector:
 
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
         corners, ids = self._detect_raw(gray)
-        if insistir and (ids is None or len(ids) == 0):
-            corners, ids = self._detect_raw(gray, tolerante=True)
 
         self.ultimo_corners = corners
         self.ultimo_ids = [] if ids is None else ids.flatten().tolist()
@@ -186,10 +165,6 @@ class SignTracker:
         self.visivel = []         # ultimas leituras validas (pra HUD)
         self.desconhecidos = {}   # id -> frames, pra IDs fora do mapa PLACAS
         self._avisados = set()
-        # main liga isso com o carro parado/chegando na zebra: ai a leitura
-        # insiste (tolerante) em TODO frame, e ninguem esta andando pra
-        # reclamar do custo. Andando, so insiste a cada 3 leituras.
-        self.modo_parado = False
         self._diag_t = {}         # id -> ultimo aviso de diagnostico (throttle)
         self.cruas = []           # leituras cruas do ultimo frame (antes dos filtros)
 
@@ -233,8 +208,7 @@ class SignTracker:
         if self._skip > 1 and (self._frame_n % self._skip):
             return None
 
-        cruas = self.detector.detect(
-            frame, insistir=self.modo_parado or (self._frame_n % 3 == 0))
+        cruas = self.detector.detect(frame)
         self.cruas = cruas
         for l in cruas:
             self._diagnostica(l)

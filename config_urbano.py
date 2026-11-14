@@ -70,10 +70,7 @@ INTENCAO_VALIDA_S = 8.0      # intencao armada expira sem cruzamento
 SIGN_SUMIU_ACIONA_FRAMES = 4 # arma tambem se o marcador sumir ja perto
 SIGN_COOLDOWN_S = 6.0        # ignora o MESMO ID depois de obedecido
 SIGN_SKIP_FRAMES = 2         # roda a deteccao 1 a cada N frames
-# 0.75 -> 1.0: frame inteiro. A camera de placas fica baixa e foi abaixada
-# mais ainda; cortar a parte de baixo podia decepar o marcador quando ele
-# passa perto do carro.
-SIGN_ROI_TOP_FRAC = 1.0
+SIGN_ROI_TOP_FRAC = 0.75     # procura placa so na parte de cima do frame
 
 # =====================================================================
 # 4. VELOCIDADES (override do config.py)
@@ -122,8 +119,12 @@ PULSO_MIN_FRAC  = 0.25
 # ARRANQUE: atrito estatico > dinamico. Sem esse tranco curto, o carro
 # zumbe ao retomar depois da parada obrigatoria.
 ARRANQUE_ATIVO   = True
-ARRANQUE_DUTY    = 0.55
-ARRANQUE_TEMPO_S = 0.12
+ARRANQUE_DUTY    = 0.70      # (era 0.55)
+ARRANQUE_TEMPO_S = 0.20      # (era 0.12)
+# PRIMEIRA arrancada depois de ligar o carro: o motor frio/bateria cheia de
+# folga ainda nao venceu o atrito dos engrenagens -- tranco bem mais forte.
+ARRANQUE_INICIAL_DUTY    = 0.90
+ARRANQUE_INICIAL_TEMPO_S = 0.35
 
 # VIES DO ALVO. Magnitude: 0.0 = meio da faixa | 1.0 = colado na linha.
 # SINAL: positivo aproxima da PONTILHADA, negativo aproxima da CONTINUA.
@@ -297,11 +298,7 @@ VELOCIDADE_MANOBRA_REF = 0.24
 
 # AVANCO da direita baixado: andar reto demais antes de virar faz o carro
 # passar do canto e curvar tarde, pousando na faixa de LONGE (errada).
-# 0.25 -> 0.0: curva a DIREITA sem avanco reto. Com o avanco o carro entrava
-# demais no cruzamento e terminava na faixa CONTRARIA (continua a esquerda).
-# Agora, depois da re, ele ja sai com o servo pra esquerda (ABRINDO) e
-# faz o balao pra direita. Quer um pouco de reta de volta? 0.15.
-MANOBRA_AVANCO_DIR_S = 0.0
+MANOBRA_AVANCO_DIR_S = 0.25
 MANOBRA_AVANCO_ESQ_S = 0.45
 
 # GIRO: quanto tempo o servo FICA no angulo de MANOBRA_TURN_MAG antes de
@@ -369,12 +366,6 @@ PARADA_DEFINITIVA = True   # placa STOP = destino, encerra a missao
 # SO ENTAO comeca a contar a parada obrigatoria.
 # A re e feita em linha reta (servo centrado), na velocidade de piso.
 RE_ATIVA            = True
-# Esterco DURANTE a re (-1 esquerda .. +1 direita). 0.0 = servo no centro.
-# Se o carro volta INCLINADO, e porque o centro do servo nao e exatamente
-# reto (o PID segura ~-0.15 pra andar reto, veja `turn` no log) e na re o
-# erro aparece. Voltou torto pra DIREITA (traseira foi pra esquerda)? Ponha
-# um valor NEGATIVO (ex: -0.10). Voltou torto pra ESQUERDA? POSITIVO (+0.10).
-RE_TURN             = 0.0
 VELOCIDADE_RE       = 0.17    # duty da re (piso do motor; nao use menos)
 # Quando recuar (frac_proximidade da zebra: 0 = longe, 1 = colada no capo):
 #   - zebra SUMIU depois de ter chegado a RE_PERDEU_FRAC (passou por baixo), ou
@@ -382,7 +373,21 @@ VELOCIDADE_RE       = 0.17    # duty da re (piso do motor; nao use menos)
 RE_GATILHO_FRAC     = 0.60
 RE_PERDEU_FRAC      = 0.40
 # Onde parar de recuar: zebra visivel com frac <= RE_ALVO_FRAC.
-RE_ALVO_FRAC        = 0.45
+# 0.45 -> 0.35 e RE_FOLGA_S: a re vai um pouco MAIS LONGE (pedido).
+RE_ALVO_FRAC        = 0.35
+# Depois de chegar no ponto seguro continua recuando mais isso (s).
+RE_FOLGA_S          = 0.5
+# ARCO NA RE: recuando com o volante esterçado o carro faz um arco maior.
+# Esterco (0..1) usado na re, SEMPRE pro lado OPOSTO da curva que vem depois:
+# curva a DIREITA -> volante pra ESQUERDA; curva a ESQUERDA -> pra DIREITA;
+# em frente/sem placa -> reto. Ele sai da re ja virado um pouco pro lado da
+# curva e com mais espaco. 0 desliga.
+RE_ARCO_TURN        = 0.60
+# O arco gira o carro um pouco; COMPENSA tira esse tanto do tempo da curva
+# seguinte pra ela nao passar dos 90 graus.
+RE_ARCO_COMPENSA    = True
+# Se o arco sair pro lado errado na sua montagem, troque pra True.
+RE_ARCO_INVERTE     = False
 RE_MIN_S            = 0.30    # recua pelo menos isso (a deteccao pisca)
 RE_MAX_S            = 1.60    # teto de tempo por tentativa
 RE_TENTATIVAS_MAX   = 2
@@ -390,14 +395,6 @@ RE_TENTATIVAS_MAX   = 2
 # (vale junto com PARADA_TEMPO_S: usa-se o MAIOR dos dois, contado a partir
 # do fim da re).
 RE_ESPERA_MIN_S     = 3.0
-# RE EXTRA so pra curva a DIREITA: depois da espera obrigatoria, recua mais
-# isso (em s, na VELOCIDADE_RE) pra largar de mais atras, e espera
-# RE_ESPERA_MIN_S de novo antes de sair. Motivo: sem avanco reto o carro faz
-# o balao a partir do ponto onde parou; quanto mais atras ele parte, mais
-# cedo termina a curva e mais perto da faixa DIREITA da rua nova ele cai.
-# Terminou na faixa contraria (muito longe)? suba (1.2). Terminou colado na
-# borda/placa da direita (curto demais)? baixe (0.6). 0 desliga.
-RE_EXTRA_DIR_S      = 0.9
 
 # =====================================================================
 # 8. RUA BLOQUEADA (No Entry / Dead End)

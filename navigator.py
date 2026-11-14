@@ -109,12 +109,9 @@ class Navigator:
         self._zebra_max = 0.0       # maior frac visto desde que a zebra foi avistada
         self._zebra_sem = 0         # frames SEGUIDOS sem enxergar barra nenhuma
         self._re_n = 0              # re's ja feitas neste cruzamento
+        self._re_t_seguro = None    # instante (na re) em que chegou no ponto seguro
+        self._re_arco_s = 0.0       # tempo recuando com o volante esterçado (p/ compensar a curva)
         self._re_viu = False        # a zebra foi vista durante a re atual
-        self._re_extra = False      # re atual e a EXTRA (so por tempo)
-        self._re_extra_feito = False
-        self._re_estende = False    # re normal que continua RE_EXTRA_DIR_S alem do ponto seguro
-        self._re_extra_tarde = False  # re extra feita DEPOIS da espera (placa lida tarde)
-        self._re_t_seguro = None
         self._frac_hist = deque(maxlen=10)  # ultimos frac (carro parou de deslizar?)
 
         self._bloqueio_ate = 0.0
@@ -232,11 +229,7 @@ class Navigator:
         self._pos_parada_confirmada = self.intencao is not None
         self._zebra_max = 0.0
         self._re_n = 0
-        self._re_extra = False
-        self._re_extra_feito = False
-        self._re_estende = False
-        self._re_extra_tarde = False
-        self._re_t_seguro = None
+        self._re_arco_s = 0.0
         self.intencao = None
         self._registrar(f"faixa de pedestre a frente -> parando "
                         f"(depois: {tipo})")
@@ -380,9 +373,11 @@ class Navigator:
             if self.sentido > 0:
                 cmd.turn = cfgu.MANOBRA_TURN_MAG_DIR
                 limite = cfgu.MANOBRA_CURVA_DIR_EFETIVA_S
+                limite = min(1.5 * limite, max(0.5 * limite, limite - self._comp_arco(cfgu.MANOBRA_TURN_MAG_DIR)))
             else:
                 cmd.turn = -cfgu.MANOBRA_TURN_MAG_ESQ
                 limite = cfgu.MANOBRA_CURVA_ESQ_S
+                limite = min(1.5 * limite, max(0.5 * limite, limite - self._comp_arco(cfgu.MANOBRA_TURN_MAG_ESQ)))
             cmd.speed = cfgu.VELOCIDADE_MANOBRA
             if dt >= limite:
                 self.frames_reengate = 0
@@ -417,39 +412,17 @@ class Navigator:
                                     f"({self._re_n}/{cfgu.RE_TENTATIVAS_MAX})")
                     self._re_viu = False
                     self._re_t_seguro = None
-                    # curva a direita: ESTA mesma re vai mais longe (uma re so)
-                    self._re_estende = (self.pos_parada == "direita"
-                                        and cfgu.RE_EXTRA_DIR_S > 0)
-                    if self._re_estende:
-                        self._re_extra_feito = True
                     self._muda(RECUANDO)
                 elif decisao is False:
-                    if (self.pos_parada == "direita" and cfgu.RE_ATIVA
-                            and cfgu.RE_EXTRA_DIR_S > 0
-                            and not self._re_extra_feito and self._re_n == 0):
-                        # ja parou antes da faixa, mas a curva a direita pede
-                        # largar de mais atras: re por tempo, ANTES da espera
-                        self._re_extra_feito = True
-                        self._re_extra = True
-                        self._registrar(f"curva a direita: re de {cfgu.RE_EXTRA_DIR_S:.1f}s")
-                        self._muda(RECUANDO)
-                    else:
-                        self._registrar(f"PARADO antes da faixa ({self._espera_parado():.0f}s)")
-                        self._muda(PARADO)
+                    self._registrar(f"PARADO antes da faixa ({self._espera_parado():.0f}s)")
+                    self._muda(PARADO)
                 # None = a zebra piscou agora; espera mais um frame pra decidir
 
         elif e == RECUANDO:
             cmd.usa_faixa = False
-            cmd.turn = cfgu.RE_TURN              # re em linha reta (ver RE_TURN)
+            arco = self._turn_arco_re()
+            cmd.turn = arco
             cmd.speed = -cfgu.VELOCIDADE_RE
-            if self._re_extra:
-                # re extra (curva a direita): so por tempo, a zebra ja nao importa
-                if dt >= cfgu.RE_EXTRA_DIR_S:
-                    self._registrar("re concluida (por tempo)")
-                    self._re_extra = False
-                    self._zebra_max = 0.0
-                    self._muda(PARANDO)
-                return
             if self._zebra_frac > 0.0:
                 self._re_viu = True
             visivel_ok = (self._zebra_frac > 0.0
@@ -460,16 +433,11 @@ class Navigator:
             seguro = visivel_ok or longe
             if seguro and self._re_t_seguro is None:
                 self._re_t_seguro = dt
-            # curva a direita: depois de chegar no ponto seguro, continua
-            # mais RE_EXTRA_DIR_S (e o teto de tempo sobe junto)
-            if self._re_estende:
-                chegou = (self._re_t_seguro is not None
-                          and dt >= max(cfgu.RE_MIN_S, self._re_t_seguro) + cfgu.RE_EXTRA_DIR_S)
-                teto = cfgu.RE_MAX_S + cfgu.RE_EXTRA_DIR_S
-            else:
-                chegou = dt >= cfgu.RE_MIN_S and seguro
-                teto = cfgu.RE_MAX_S
-            if chegou or dt >= teto:
+            # chegou no ponto seguro: continua mais RE_FOLGA_S (re um pouco maior)
+            chegou = (self._re_t_seguro is not None
+                      and dt >= max(cfgu.RE_MIN_S, self._re_t_seguro) + cfgu.RE_FOLGA_S)
+            if chegou or dt >= cfgu.RE_MAX_S + cfgu.RE_FOLGA_S:
+                self._re_arco_s += dt if arco != 0.0 else 0.0
                 if not seguro:
                     self._registrar("re: tempo maximo -- parando assim mesmo")
                 else:
@@ -493,18 +461,6 @@ class Navigator:
             if dt >= espera and (self._pos_parada_confirmada or tempo_esgotado):
                 if not self._pos_parada_confirmada:
                     self._registrar("placa nao confirmada a tempo -- seguindo reto por padrao")
-                if (self.pos_parada == "direita" and cfgu.RE_ATIVA
-                        and cfgu.RE_EXTRA_DIR_S > 0 and not self._re_extra_feito
-                        and self._re_n == 0):
-                    # placa lida SO depois da espera e ainda nao houve nenhuma
-                    # re: recua (uma unica vez) antes de sair
-                    self._re_extra_feito = True
-                    self._re_extra_tarde = True
-                    self._re_extra = True
-                    self._pos_parada_confirmada = True
-                    self._registrar(f"curva a direita: re extra de {cfgu.RE_EXTRA_DIR_S:.1f}s")
-                    self._muda(RECUANDO)
-                    return
                 cmd.resetar_pid = True
                 self.frames_reengate = 0
                 self._executar_pos_parada()
@@ -523,12 +479,29 @@ class Navigator:
             cmd.usa_faixa = True
 
     # ------------------------------------------------------------------
+    def _turn_arco_re(self):
+        """Esterco da re: oposto ao lado da curva que vem depois (arco maior)."""
+        if cfgu.RE_ARCO_TURN <= 0:
+            return 0.0
+        if self.pos_parada == "direita":
+            t = -cfgu.RE_ARCO_TURN
+        elif self.pos_parada == "esquerda":
+            t = +cfgu.RE_ARCO_TURN
+        else:
+            return 0.0
+        return -t if cfgu.RE_ARCO_INVERTE else t
+
+    def _comp_arco(self, mag_curva):
+        """Tempo a tirar da curva: o arco da re ja girou o carro um pouco."""
+        if not cfgu.RE_ARCO_COMPENSA or self._re_arco_s <= 0 or mag_curva <= 0:
+            return 0.0
+        comp = (cfgu.RE_ARCO_TURN / mag_curva) * self._re_arco_s
+        return -comp if cfgu.RE_ARCO_INVERTE else comp   # invertido: gira pro lado errado
+
     def _espera_parado(self):
         """Tempo minimo parado. Depois de uma RE, nunca menos que
         RE_ESPERA_MIN_S (contado a partir de o carro parar de vez)."""
-        if self._re_extra_tarde:
-            return cfgu.RE_ESPERA_MIN_S        # ja esperou a parada toda antes dessa re
-        if self._re_n > 0 or self._re_extra_feito:
+        if self._re_n > 0:
             return max(cfgu.PARADA_TEMPO_S, cfgu.RE_ESPERA_MIN_S)
         return cfgu.PARADA_TEMPO_S
 

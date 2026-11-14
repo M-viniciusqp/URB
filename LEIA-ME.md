@@ -217,15 +217,11 @@ muda esses tempos.
   False` desliga. Estado novo `RECUANDO`.
 - **Placa armando parado**: `SIGN_DIST_ACIONA_PARADO_M` (1.70 m) vale enquanto
   o carro esta chegando/parado/recuando na zebra.
-- **Curva a direita sem cair na contramao**: sem avanco reto
-  (`MANOBRA_AVANCO_DIR_S = 0`): sai ja com o servo pra esquerda (`ABRINDO`) e
-  faz o balao pra direita. UMA re so: se a curva e a direita, a re vai
-  `RE_EXTRA_DIR_S` (0.9 s) alem do ponto seguro (ou, se ja parou antes da
-  faixa, recua so esse tempo) e depois vem a espera (>= 3 s). Terminou na
-  faixa contraria: suba `RE_EXTRA_DIR_S`; colado na borda/placa: baixe.
-- **Leitura de placa mais robusta**: o detector tem 2 jogos de parametros. O
-  rapido (padrao) e o tolerante (borrao/vibracao; na bancada sintetica achou
-  40/40 onde o padrao achava 0-8/40, sem trocar ID). Com o carro parado/chegando
-  na zebra a leitura roda em TODO frame e insiste com o tolerante; andando,
-  insiste a cada 3 leituras. O frame todo e usado (`SIGN_ROI_TOP_FRAC = 1.0`).
-  Placa lida e descartada agora imprime o motivo (`[placa] ... DESCARTADO`).
+- **Re maior e em arco**: a re vai mais longe (`RE_ALVO_FRAC = 0.35` +
+  `RE_FOLGA_S = 0.5 s`) e recua com o volante esterçado pro lado OPOSTO da
+  curva seguinte (`RE_ARCO_TURN = 0.60`; direita -> volante esquerda). O tempo
+  da curva e reduzido pra compensar a rotacao do arco (`RE_ARCO_COMPENSA`).
+  Arco pro lado errado: `RE_ARCO_INVERTE = True`. `RE_ARCO_TURN = 0` desliga.
+- **Arrancada mais forte**: `ARRANQUE_DUTY 0.70` por `0.20 s` em toda saida
+  do repouso e, na PRIMEIRA saida depois de ligar, `ARRANQUE_INICIAL_DUTY 0.90`
+  por `0.35 s`.

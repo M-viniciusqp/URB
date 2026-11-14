@@ -37,6 +37,8 @@ class Motor:
         self._t_turn = time.time()
         self._parado_desde = time.time()   # pro tranco de arranque
         self._andando = False
+        self._tranco_forte = False
+        self._primeira_arrancada = True    # 1a saida depois de ligar: tranco maior
         self.set_servo_angle(config.SERVO_CENTRO)
 
     # ---------------- SERVO ----------------
@@ -122,8 +124,15 @@ class Motor:
         if not self._andando:
             self._andando = True
             self._parado_desde = agora
-        if agora - self._parado_desde < cfgu.ARRANQUE_TEMPO_S:
-            alvo = max(abs(speed), cfgu.ARRANQUE_DUTY)
+            self._tranco_forte = self._primeira_arrancada
+            self._primeira_arrancada = False
+        if self._tranco_forte:
+            tempo = getattr(cfgu, "ARRANQUE_INICIAL_TEMPO_S", cfgu.ARRANQUE_TEMPO_S)
+            duty = getattr(cfgu, "ARRANQUE_INICIAL_DUTY", cfgu.ARRANQUE_DUTY)
+        else:
+            tempo, duty = cfgu.ARRANQUE_TEMPO_S, cfgu.ARRANQUE_DUTY
+        if agora - self._parado_desde < tempo:
+            alvo = max(abs(speed), duty)
             return alvo if speed >= 0 else -alvo
         return speed
 
