@@ -372,7 +372,7 @@ RE_ATIVA            = True
 #  - RE_BALANCO_B: potencia do motor B em relacao ao A SO NA RE (1.0 = igual).
 #    Se uma roda e mais forte que a outra, o carro gira. Suba/baixe 0.05.
 # Teste isolado:  python3 test_re.py [RE_TURN] [RE_BALANCO_B] [segundos]
-RE_TURN             = 0.0
+RE_TURN             = -0.10   # medido na pista com test_re.py: voltou reto
 RE_BALANCO_B        = 1.0
 VELOCIDADE_RE       = 0.17    # duty da re (piso do motor; nao use menos)
 # Quando recuar (frac_proximidade da zebra: 0 = longe, 1 = colada no capo):
