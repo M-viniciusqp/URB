@@ -70,7 +70,10 @@ INTENCAO_VALIDA_S = 8.0      # intencao armada expira sem cruzamento
 SIGN_SUMIU_ACIONA_FRAMES = 4 # arma tambem se o marcador sumir ja perto
 SIGN_COOLDOWN_S = 6.0        # ignora o MESMO ID depois de obedecido
 SIGN_SKIP_FRAMES = 2         # roda a deteccao 1 a cada N frames
-SIGN_ROI_TOP_FRAC = 0.75     # procura placa so na parte de cima do frame
+# 0.75 -> 1.0: frame inteiro. A camera de placas fica baixa e foi abaixada
+# mais ainda; cortar a parte de baixo podia decepar o marcador quando ele
+# passa perto do carro.
+SIGN_ROI_TOP_FRAC = 1.0
 
 # =====================================================================
 # 4. VELOCIDADES (override do config.py)

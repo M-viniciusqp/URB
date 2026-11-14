@@ -114,9 +114,10 @@ def main():
                 continue
 
             # parado na zebra a placa arma de mais longe (ver config_urbano)
+            parado_na_zebra = nav.estado in (APROXIMANDO, PARANDO, RECUANDO, PARADO)
             placas.dist_aciona = (cfgu.SIGN_DIST_ACIONA_PARADO_M
-                                  if nav.estado in (APROXIMANDO, PARANDO, RECUANDO, PARADO)
-                                  else cfgu.SIGN_DIST_ACIONA_M)
+                                  if parado_na_zebra else cfgu.SIGN_DIST_ACIONA_M)
+            placas.modo_parado = parado_na_zebra     # le a cada frame e insiste
 
             # ---------- 1. PLACAS (camera dedicada) -------------------
             # A leitura da camera de placas e SALTEADA (SIGN_SKIP_FRAMES):
@@ -124,7 +125,7 @@ def main():
             # e o que mantem o carro na pista. Placa nao precisa de 30 FPS
             # -- ela fica parada esperando o carro chegar.
             if DUAS_CAMERAS:
-                if frame_n % cfgu.SIGN_SKIP_FRAMES == 0:
+                if parado_na_zebra or frame_n % cfgu.SIGN_SKIP_FRAMES == 0:
                     ok_p, frame_placas = cap_placas.read()
                     if ok_p:
                         evento = placas.update(frame_placas)

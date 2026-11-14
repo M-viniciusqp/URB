@@ -219,7 +219,13 @@ muda esses tempos.
   o carro esta chegando/parado/recuando na zebra.
 - **Curva a direita sem cair na contramao**: sem avanco reto
   (`MANOBRA_AVANCO_DIR_S = 0`): sai ja com o servo pra esquerda (`ABRINDO`) e
-  faz o balao pra direita. Alem disso, depois da espera ele da uma RE EXTRA
-  (`RE_EXTRA_DIR_S`, 0.9 s) pra largar de mais atras e espera mais
-  `RE_ESPERA_MIN_S` (3 s) antes de sair. Terminou na faixa contraria: suba
-  `RE_EXTRA_DIR_S`; colado na borda/placa da direita: baixe.
+  faz o balao pra direita. UMA re so: se a curva e a direita, a re vai
+  `RE_EXTRA_DIR_S` (0.9 s) alem do ponto seguro (ou, se ja parou antes da
+  faixa, recua so esse tempo) e depois vem a espera (>= 3 s). Terminou na
+  faixa contraria: suba `RE_EXTRA_DIR_S`; colado na borda/placa: baixe.
+- **Leitura de placa mais robusta**: o detector tem 2 jogos de parametros. O
+  rapido (padrao) e o tolerante (borrao/vibracao; na bancada sintetica achou
+  40/40 onde o padrao achava 0-8/40, sem trocar ID). Com o carro parado/chegando
+  na zebra a leitura roda em TODO frame e insiste com o tolerante; andando,
+  insiste a cada 3 leituras. O frame todo e usado (`SIGN_ROI_TOP_FRAC = 1.0`).
+  Placa lida e descartada agora imprime o motivo (`[placa] ... DESCARTADO`).
