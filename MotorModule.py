@@ -37,8 +37,6 @@ class Motor:
         self._t_turn = time.time()
         self._parado_desde = time.time()   # pro tranco de arranque
         self._andando = False
-        self._tranco_forte = False
-        self._primeira_arrancada = True    # 1a saida depois de ligar: tranco maior
         self.set_servo_angle(config.SERVO_CENTRO)
 
     # ---------------- SERVO ----------------
@@ -124,15 +122,8 @@ class Motor:
         if not self._andando:
             self._andando = True
             self._parado_desde = agora
-            self._tranco_forte = self._primeira_arrancada
-            self._primeira_arrancada = False
-        if self._tranco_forte:
-            tempo = getattr(cfgu, "ARRANQUE_INICIAL_TEMPO_S", cfgu.ARRANQUE_TEMPO_S)
-            duty = getattr(cfgu, "ARRANQUE_INICIAL_DUTY", cfgu.ARRANQUE_DUTY)
-        else:
-            tempo, duty = cfgu.ARRANQUE_TEMPO_S, cfgu.ARRANQUE_DUTY
-        if agora - self._parado_desde < tempo:
-            alvo = max(abs(speed), duty)
+        if agora - self._parado_desde < cfgu.ARRANQUE_TEMPO_S:
+            alvo = max(abs(speed), cfgu.ARRANQUE_DUTY)
             return alvo if speed >= 0 else -alvo
         return speed
 
@@ -146,8 +137,12 @@ class Motor:
         GPIO.output(self.In2A, GPIO.LOW if forward else GPIO.HIGH)
         GPIO.output(self.In1B, GPIO.HIGH if forward else GPIO.LOW)
         GPIO.output(self.In2B, GPIO.LOW if forward else GPIO.HIGH)
+        # balanco entre os motores SO NA RE (uma roda mais forte gira o carro)
+        fb = 1.0
+        if cfgu is not None and not forward:
+            fb = getattr(cfgu, "RE_BALANCO_B", 1.0)
         self.pwmA.ChangeDutyCycle(abs(speed))
-        self.pwmB.ChangeDutyCycle(abs(speed))
+        self.pwmB.ChangeDutyCycle(min(100.0, abs(speed) * fb))
 
     def _marcar_parado(self):
         self._andando = False

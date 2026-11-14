@@ -421,7 +421,7 @@ class Navigator:
         elif e == RECUANDO:
             cmd.usa_faixa = False
             arco = self._turn_arco_re()
-            cmd.turn = arco
+            cmd.turn = max(-1.0, min(1.0, arco + cfgu.RE_TURN))
             cmd.speed = -cfgu.VELOCIDADE_RE
             if self._zebra_frac > 0.0:
                 self._re_viu = True

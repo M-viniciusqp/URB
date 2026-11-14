@@ -119,12 +119,8 @@ PULSO_MIN_FRAC  = 0.25
 # ARRANQUE: atrito estatico > dinamico. Sem esse tranco curto, o carro
 # zumbe ao retomar depois da parada obrigatoria.
 ARRANQUE_ATIVO   = True
-ARRANQUE_DUTY    = 0.70      # (era 0.55)
-ARRANQUE_TEMPO_S = 0.20      # (era 0.12)
-# PRIMEIRA arrancada depois de ligar o carro: o motor frio/bateria cheia de
-# folga ainda nao venceu o atrito dos engrenagens -- tranco bem mais forte.
-ARRANQUE_INICIAL_DUTY    = 0.90
-ARRANQUE_INICIAL_TEMPO_S = 0.35
+ARRANQUE_DUTY    = 0.55
+ARRANQUE_TEMPO_S = 0.12
 
 # VIES DO ALVO. Magnitude: 0.0 = meio da faixa | 1.0 = colado na linha.
 # SINAL: positivo aproxima da PONTILHADA, negativo aproxima da CONTINUA.
@@ -366,6 +362,18 @@ PARADA_DEFINITIVA = True   # placa STOP = destino, encerra a missao
 # SO ENTAO comeca a contar a parada obrigatoria.
 # A re e feita em linha reta (servo centrado), na velocidade de piso.
 RE_ATIVA            = True
+# ACERTO DO RETO NA RE. Se o carro volta torto:
+#  - RE_TURN: esterco fixo na re (-1 esq .. +1 dir). Olhe pra TRASEIRA: na
+#    re ela vai pro lado em que o volante aponta.
+#      traseira desviando pra DIREITA  -> RE_TURN NEGATIVO (-0.10, -0.15...)
+#      traseira desviando pra ESQUERDA -> RE_TURN POSITIVO (+0.10...)
+#    (o centro do servo nao e exatamente reto: andando em frente o PID segura
+#    ~-0.15 -- veja `turn` no log -- e na re isso aparece como inclinacao).
+#  - RE_BALANCO_B: potencia do motor B em relacao ao A SO NA RE (1.0 = igual).
+#    Se uma roda e mais forte que a outra, o carro gira. Suba/baixe 0.05.
+# Teste isolado:  python3 test_re.py [RE_TURN] [RE_BALANCO_B] [segundos]
+RE_TURN             = 0.0
+RE_BALANCO_B        = 1.0
 VELOCIDADE_RE       = 0.17    # duty da re (piso do motor; nao use menos)
 # Quando recuar (frac_proximidade da zebra: 0 = longe, 1 = colada no capo):
 #   - zebra SUMIU depois de ter chegado a RE_PERDEU_FRAC (passou por baixo), ou
@@ -382,7 +390,9 @@ RE_FOLGA_S          = 0.5
 # curva a DIREITA -> volante pra ESQUERDA; curva a ESQUERDA -> pra DIREITA;
 # em frente/sem placa -> reto. Ele sai da re ja virado um pouco pro lado da
 # curva e com mais espaco. 0 desliga.
-RE_ARCO_TURN        = 0.60
+# DESLIGADO (0.0): o arco fazia o carro voltar INCLINADO pra direita. A re
+# agora e reta (veja RE_TURN e RE_BALANCO_B pra acertar o reto).
+RE_ARCO_TURN        = 0.0
 # O arco gira o carro um pouco; COMPENSA tira esse tanto do tempo da curva
 # seguinte pra ela nao passar dos 90 graus.
 RE_ARCO_COMPENSA    = True

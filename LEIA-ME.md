@@ -217,11 +217,8 @@ muda esses tempos.
   False` desliga. Estado novo `RECUANDO`.
 - **Placa armando parado**: `SIGN_DIST_ACIONA_PARADO_M` (1.70 m) vale enquanto
   o carro esta chegando/parado/recuando na zebra.
-- **Re maior e em arco**: a re vai mais longe (`RE_ALVO_FRAC = 0.35` +
-  `RE_FOLGA_S = 0.5 s`) e recua com o volante esterçado pro lado OPOSTO da
-  curva seguinte (`RE_ARCO_TURN = 0.60`; direita -> volante esquerda). O tempo
-  da curva e reduzido pra compensar a rotacao do arco (`RE_ARCO_COMPENSA`).
-  Arco pro lado errado: `RE_ARCO_INVERTE = True`. `RE_ARCO_TURN = 0` desliga.
-- **Arrancada mais forte**: `ARRANQUE_DUTY 0.70` por `0.20 s` em toda saida
-  do repouso e, na PRIMEIRA saida depois de ligar, `ARRANQUE_INICIAL_DUTY 0.90`
-  por `0.35 s`.
+- **Re maior e RETA**: a re vai mais longe (`RE_ALVO_FRAC = 0.35` +
+  `RE_FOLGA_S = 0.5 s`). O arco na re (`RE_ARCO_TURN`) ficou DESLIGADO (0):
+  fazia o carro voltar inclinado. Pra acertar o reto: `RE_TURN` (esterco fixo)
+  e `RE_BALANCO_B` (potencia do motor B so na re), testando com
+  `python3 test_re.py [RE_TURN] [RE_BALANCO_B] [segundos]`.
